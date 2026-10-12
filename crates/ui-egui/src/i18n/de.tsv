@@ -1104,6 +1104,23 @@
 	Graph	Diagramm
 	Graph Data	Diagrammdaten
 	Graph Type	Diagrammtyp
+	Graph Design	Diagrammdesign
+	Graph Marker	Diagrammmarkierung
+	New Design	Neues Design
+	Delete Design	Design löschen
+	Paste Design	Design einfügen
+	Select Unused	Nicht verwendete auswählen
+	Import Data…	Daten importieren…
+	Transpose	Transponieren
+	Switch x/y	x/y vertauschen
+	Number of Decimals:	Anzahl Dezimalstellen:
+	Column Width:	Spaltenbreite:
+	No Legend	Keine Legende
+	Standard Legend	Standardlegende
+	Legends in Wedges	Legenden in Segmenten
+	Ratio	Verhältnis
+	Even	Gleich
+	Stacked	Gestapelt
 	Graphic Style	Grafikstil
 	Graphic Style Libraries	Grafikstil-Bibliotheken
 	Graphic Style Libraries Menu	Menü „Grafikstil-Bibliotheken“
@@ -2164,6 +2181,13 @@
 	Relinked {n} image(s); not in that folder: {}	{n} Bild(er) neu verknüpft; nicht in diesem Ordner: {}
 	Relinked {} image(s)	{} Bild(er) neu verknüpft
 	Relink…	Neu verknüpfen…
+	Find Linked Files	Verknüpfte Dateien suchen
+	Find Linked Files in Folder…	Verknüpfte Dateien in Ordner suchen…
+	Choose the file to relink each linked file to. Files with the size and contents saved with the link come first.	Wählen Sie für jede verknüpfte Datei die Datei aus, mit der sie neu verknüpft werden soll. Dateien mit der Größe und dem Inhalt, die mit der Verknüpfung gespeichert sind, stehen oben.
+	Same file	Gleiche Datei
+	Same size	Gleiche Größe
+	Don't Relink	Nicht neu verknüpfen
+	Copy into the document's folder	In den Ordner des Dokuments kopieren
 	Reload Plug-ins	Plug-ins neu laden
 	Remove	Entfernen
 	Remove Anchor Points	Ankerpunkte entfernen
@@ -2432,6 +2456,7 @@
 	Select an image to see its Link Info.	Wählen Sie ein Bild aus, um seine Verknüpfungsinformationen anzuzeigen.
 	Select an image to trace	Bild zum Nachzeichnen auswählen
 	Select Anchors	Ankerpunkte auswählen
+	Select Segments	Segmente auswählen
 	Select Appearance Item	Aussehenselement auswählen
 	Select Art	Grafik auswählen
 	Select art and choose Object › Pattern › Make.	Wählen Sie eine Grafik aus und wählen Sie „Objekt › Muster › Erstellen“.
@@ -3020,6 +3045,7 @@ effect	Points	Punkte
 	Vertical %	Vertikal %
 	Vertical Align Bottom	Vertikal unten ausrichten
 	Vertical Align Center	Vertikal zentriert ausrichten
+	Horizontal & Vertical Align Center	Horizontal und vertikal zentriert ausrichten
 	Vertical Align Top	Vertikal oben ausrichten
 	Vertical Area Type Tool	Vertikaler-Flächentext-Werkzeug
 	Vertical Distribute Bottom	Vertikal unten verteilen
@@ -3836,6 +3862,9 @@ theme	Appearance	Erscheinungsbild
 @msg	larger than 256 MB	größer als 256 MB
 @msg	the files come to more than 1 GB: add fewer at a time	die Dateien sind zusammen größer als 1 GB: Fügen Sie weniger auf einmal hinzu
 @msg	every numbered name for it is taken in the Fonts folder	alle nummerierten Namen dafür sind im Schriftenordner bereits vergeben
+@msg	every numbered name for {name} is taken in the document's folder	alle nummerierten Namen für {name} sind im Ordner des Dokuments bereits vergeben
+@msg	No linked files to look for	Keine verknüpften Dateien zum Suchen
+@msg	Relinked {n} image(s); {name} couldn't be relinked: {reason}	{n} Bild(er) neu verknüpft; {name} konnte nicht neu verknüpft werden: {reason}
 
 # The macOS menu bar (native_menu): the app and Window menus' system items, Settings pages.
 	Services	Dienste
@@ -4121,3 +4150,10 @@ theme	Appearance	Erscheinungsbild
 	Invalid hex color	Ungültige Hex-Farbe
 @msg	bad selection color key {v}	ungültiger Farbschlüssel der Auswahl {v}
 @msg	the color is not used in the selection	die Farbe wird in der Auswahl nicht verwendet
+	Artistic	Kunstfilter
+	Film Grain…	Filmkörnung…
+	Grain	Körnung
+	Highlight Area	Lichterbereich
+@msg	the compressed file unpacks to more than VectorCraft reads ({_1} MB of document, {_2} MB per image)	die komprimierte Datei entpackt sich auf mehr, als VectorCraft liest ({_1} MB Dokument, {_2} MB pro Bild)
+@msg	the document is too large to save compressed ({0}): save it with Use Compression off	das Dokument ist zu groß, um komprimiert gespeichert zu werden ({0}): speichern Sie es mit deaktivierter Option „Komprimierung verwenden“
+@msg	the file stopped being read (please report this bug)	das Lesen der Datei wurde abgebrochen (bitte melden Sie diesen Fehler)

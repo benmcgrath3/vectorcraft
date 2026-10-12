@@ -1120,6 +1120,23 @@
 	Graph	Graphe
 	Graph Data	Données du graphe
 	Graph Type	Type de graphe
+	Graph Design	Conception de graphe
+	Graph Marker	Marqueur de graphe
+	New Design	Nouvelle conception
+	Delete Design	Supprimer la conception
+	Paste Design	Coller la conception
+	Select Unused	Sélectionner les éléments inutilisés
+	Import Data…	Importer des données…
+	Transpose	Transposer
+	Switch x/y	Permuter x/y
+	Number of Decimals:	Nombre de décimales :
+	Column Width:	Largeur de colonne :
+	No Legend	Aucune légende
+	Standard Legend	Légende standard
+	Legends in Wedges	Légendes dans les secteurs
+	Ratio	Proportionnel
+	Even	Égal
+	Stacked	Empilé
 	Graphic Style	Style graphique
 	Graphic Style Libraries	Bibliothèques de styles graphiques
 	Graphic Style Libraries Menu	Menu Bibliothèques de styles graphiques
@@ -2212,6 +2229,13 @@
 	Relinked {n} image(s); not in that folder: {}	{n} image(s) liée(s) à nouveau ; absentes de ce dossier : {}
 	Relinked {} image(s)	{} image(s) liée(s) à nouveau
 	Relink…	Lier à nouveau…
+	Find Linked Files	Rechercher des fichiers liés
+	Find Linked Files in Folder…	Rechercher des fichiers liés dans un dossier…
+	Choose the file to relink each linked file to. Files with the size and contents saved with the link come first.	Choisissez pour chaque fichier lié le fichier auquel le lier à nouveau. Les fichiers dont la taille et le contenu correspondent à ceux enregistrés avec le lien apparaissent en premier.
+	Same file	Même fichier
+	Same size	Même taille
+	Don't Relink	Ne pas lier à nouveau
+	Copy into the document's folder	Copier dans le dossier du document
 	Reload Plug-ins	Recharger les modules externes
 	Remove	Supprimer
 	Remove Anchor Points	Supprimer les points d’ancrage
@@ -2480,6 +2504,7 @@
 	Select an image to see its Link Info.	Sélectionnez une image pour afficher les informations sur son lien.
 	Select an image to trace	Sélectionnez une image à vectoriser
 	Select Anchors	Sélectionner les points d’ancrage
+	Select Segments	Sélectionner les segments
 	Select Appearance Item	Sélectionner un élément d’aspect
 	Select Art	Sélectionner l’illustration
 	Select art and choose Object › Pattern › Make.	Sélectionnez une illustration et choisissez Objet › Motif › Créer.
@@ -3117,6 +3142,7 @@
 	Vertical %	% vertical
 	Vertical Align Bottom	Alignement vertical en bas
 	Vertical Align Center	Alignement vertical au centre
+	Horizontal & Vertical Align Center	Alignement centré horizontal et vertical
 	Vertical Align Top	Alignement vertical en haut
 	Vertical Area Type Tool	Outil Texte captif vertical
 	Vertical Distribute Bottom	Répartition verticale en bas
@@ -3933,6 +3959,9 @@ axis	Both	Les deux
 @msg	larger than 256 MB	plus de 256 Mo
 @msg	the files come to more than 1 GB: add fewer at a time	les fichiers dépassent 1 Go : ajoutez-en moins à la fois
 @msg	every numbered name for it is taken in the Fonts folder	tous les noms numérotés pour ce fichier sont déjà pris dans le dossier Fonts
+@msg	every numbered name for {name} is taken in the document's folder	tous les noms numérotés pour {name} sont déjà pris dans le dossier du document
+@msg	No linked files to look for	Aucun fichier lié à rechercher
+@msg	Relinked {n} image(s); {name} couldn't be relinked: {reason}	Lien rétabli pour {n} image(s), mais impossible de lier à nouveau {name} ({reason})
 
 # The macOS menu bar (native_menu): the app and Window menus' system items, Settings pages.
 	Services	Services
@@ -4175,3 +4204,9 @@ lighting	Light	Lumière
 	Invalid hex color	Couleur hexadécimale non valide
 @msg	bad selection color key {v}	clé de couleur de sélection non valide {v}
 @msg	the color is not used in the selection	la couleur n’est pas utilisée dans la sélection
+	Artistic	Artistique
+	Film Grain…	Grain photographique…
+	Highlight Area	Zone des tons clairs
+@msg	the compressed file unpacks to more than VectorCraft reads ({_1} MB of document, {_2} MB per image)	le fichier compressé dépasse une fois décompressé ce que VectorCraft lit ({_1} Mo de document, {_2} Mo par image)
+@msg	the document is too large to save compressed ({0}): save it with Use Compression off	le document est trop volumineux pour être enregistré compressé ({0}) : enregistrez-le avec Utiliser la compression désactivé
+@msg	the file stopped being read (please report this bug)	la lecture du fichier s’est interrompue (veuillez signaler ce bogue)

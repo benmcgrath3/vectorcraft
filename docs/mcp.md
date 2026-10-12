@@ -65,10 +65,10 @@ the suite) keep the agent to the folders you give it:
 
 - Every file a command reads must lie inside the **read root**: `open_file`, `file.place`, relinking and
   updating links, the images an SVG links to, swatch library, graphic style library and colour-profile loads, plug-ins,
-  `file.newFromTemplate`, preset imports, the folders `text.findFontFiles` searches.
+  `file.newFromTemplate`, preset imports, the folders `text.findFontFiles` and `links.findFiles` search.
 - Every file a command writes must lie inside the **write root**: `save_file`, `export`, the save and
   export commands, Export for Screens, Package, Export for Web, print to file, `screenshot {path}`,
-  library and preset saves to a path.
+  library and preset saves to a path, the copies `links.relink {copy}` makes.
 - `file.list {path}` (through `run_command`) lists a folder's files and folders, held to the read root like any read, so an agent can see what it was given (#1163).
 - Read and write access are separate. Give the same folder twice for both; a root left out grants none
   of its access (with only `--automation-read-root`, nothing can be written to disk, though `export` and
@@ -750,12 +750,23 @@ that were already hidden or locked. The key object is cleared when it is one of 
 them again with the key object. When the call changes nothing, it records no undo step and still deselects them.
 Other `object.setProps` calls leave the selection unchanged.
 
+These Select menu commands select only the objects that `select.all` selects and the objects inside them: every
+`select.same.*` and `select.object.*` command except `select.object.slices`, `select.nextAbove`, `select.nextBelow`
+and `select.recall`. They leave out hidden and locked objects with the objects inside them, the objects on hidden,
+locked or template layers and sublayers and, in isolation mode, everything outside the isolated group or layer. When
+the isolated group or layer, or a group or layer it is in, is hidden, locked or a template layer, they also leave out
+everything in it, and `select.all`, `select.allOnArtboard` and `select.inverse` select nothing.
+`select.nextAbove` and `select.nextBelow` select the nearest such object above or below the first selected object
+among the objects beside it in its group or layer, passing over hidden and locked objects and sublayers. When there
+is no such object, the selection stays as it is.
+
 ## Saved selections
 
 Select → Save Selection… keeps the selected objects under a name, in the document: `select.save {name?}` (default
 the first free "Selection N"; an existing name is replaced with the current selection; at most 25 per document,
 names up to 255 characters) → `{name}`, one undo step. `select.savedList` lists the names in menu order, and
-`select.recall {name}` selects those objects again (ones deleted since are left out) → `{count}`. Edit Selection…
+`select.recall {name}` selects those objects again, except the ones deleted since and the ones hidden, locked or
+outside the isolated group or layer (see Object selection) → `{count}`. Edit Selection…
 renames and deletes: `select.editSaved {name, newName?, delete?}`, or several at once as
 `{edits: [{name, newName?, delete?}…]}` in one undo step, where every `name` is the name before the edit and the
 names must stay unique. In the desktop app the saved selections are listed at the bottom of the Select menu
@@ -1444,6 +1455,10 @@ its strokes' effects (drop shadow offsets and blur, offsets, radii…; `effect.l
 relative Roughen, Tweak and Zig Zag sizes stay percentages), in groups and layers too. With it off, nothing painted
 changes size, and type keeps its character strokes' weight. With Scale Corners off, live corner radii keep their
 size. The journal entry of a scaling command records the `strokes` and `corners` it used, so actions replay alike.
+`object.transformAgain` applies the last transform's matrix with the `copy`, `strokes`, `corners`, `patterns` and
+`typeAreas` values that transform used, and a true or false value given in its own params takes precedence. After a
+drag of art without a pattern, `patterns` follows the preference `transformPatternTiles`. Its journal entry records
+the `strokes`, `corners` and `patterns` it used, as a transform's does.
 
 ```json
 {"name":"run_command","arguments":{"command":"object.scale","params":{"sx":200,"strokes":true}}}
@@ -1513,7 +1528,8 @@ remote mode, MCP's `run_command` calls and each step of the `command_batch` tool
 Actions panel plays an action as a `command.batch`. An action recorded in the Actions panel leaves the artboard out,
 and its steps of these commands get the artboard that is active when the action plays. A press with the Selection,
 Direct Selection or Group Selection tool inside an artboard makes that artboard the active one; with the Selection
-tool, a Shift-click on an empty spot inside an artboard makes it active and keeps the selection.
+tool, a Shift-click on an empty spot inside an artboard makes it active and keeps the selection. Choosing the Artboard
+tool (`tool.select {tool: "artboard"}`) starts it on the active artboard: its `active` option is that artboard's index.
 
 ```json
 {"name":"run_command","arguments":{"command":"object.align","params":{"horizontal":"left","to":"artboard","artboard":1}}}
@@ -1592,6 +1608,12 @@ off, an empty window, and the Home button or `app.home` still shows the screen),
 default: on, a click away from a panel popped out of the icon column puts it away) and `displayPrintSize` (off by
 default: View › Actual Size / `view.actualSize` is one document point per screen point; on, one document inch fills
 96 screen points, an inch at the system's reference density whatever the display scaling).
+
+`gridlineEvery` (72 pt by default) and `gridSubdivisions` (8 by default) set the document grid that View › Show Grid
+draws, and View › Snap to Grid snaps to its subdivisions. Changing either sets the grid of every open document.
+`file.new` gives a new document that grid, and `document.open`, `file.newFromTemplate` and `file.revert` give it to
+every document they read except a native file and the native document that an SVG, PDF, `.ai` or EPS file carries
+(`restored: true`), which keep the grid they were saved with.
 
 The Smart Guides preferences (Preferences › Smart Guides) apply to `pointer_gesture` with Smart Guides on (the
 default view) and to the mouse; they change what the tools show and how far a target pulls, and only Construction
@@ -1924,6 +1946,24 @@ comes back to the front, following the same preference. `links.check` reports ev
 another file (or each at the file of its name in a folder); images keep their bounds, one undo step each. Without a
 file system (the web), linked images show their previews.
 
+`links.findFiles {folder}` looks in an absolute folder and its subfolders, on separate threads, for the files of the
+active document's missing links, or of the images and placed documents `ids` whatever their status, and returns at once
+with an `id` and the search's `state` (`searching` while it runs). It finds the files with each linked file's name, in
+any letter case, and lists them best first as `{path, size, match, caseDiffers?}`: `same` when the file has the size and
+hash saved with the link, `size` when it has the saved size and the link saved no hash (or the file is larger than 1 GB,
+which a search doesn't hash), else `name`. Within each kind, a file whose name has the link's letter case comes first.
+Then each file's folder names are compared with the saved path's, from the innermost outward up to the first one that
+differs, and a file with more matching names comes first; files that still tie are listed by path. `links.findFiles {}`
+returns the last search's state, and `{stop: true}` stops it. A search looks for at most 1,000 linked files, keeps the
+first 10 files of each one's name and up to 10 that are the same file, and ends once every linked file has its same
+file; it searches only the folders `text.findFontFiles` may search, with the same `maxSeconds`, depth and count limits.
+`links.relink {ids, path, copy: true}` copies the file into the saved document's folder and links images to the copy,
+never replacing a file there: the names `Name.png`, `Name 2.png` up to `Name 99.png` are tried in turn until one is
+free, which gets the copy (`copied`), or is a file with the same contents, which is used (`kept`). With `copy`, a call
+that includes a placed document fails and relinks nothing; placed documents are relinked without `copy`, where their
+files are. Find in Folder… in the Linked File Not Found dialog and in the Links panel menu (`ui.findLinksInFolder`) runs
+both. The web build has no folder search.
+
 Placed documents (a `.vectorcraft` file placed linked) work the same way: the document keeps the file's bytes and a
 preview (JPEG or PNG, 1 px per point, at most 1024 px a side), and a save writes the preview (Include Linked Files:
 the file); output reads the file again, or uses the preview with a warning when it is gone or changed.
@@ -1936,6 +1976,9 @@ the document; so does `object.expand`.
 {"name":"run_command","arguments":{"command":"links.check","params":{}}}
 {"name":"run_command","arguments":{"command":"links.relink","params":{"ids":[12],"path":"/new/photo.png"}}}
 {"name":"run_command","arguments":{"command":"links.update","params":{}}}
+{"name":"run_command","arguments":{"command":"links.findFiles","params":{"folder":"/Users/me/Archive"}}}
+{"name":"run_command","arguments":{"command":"links.findFiles","params":{}}}
+{"name":"run_command","arguments":{"command":"links.relink","params":{"ids":[12],"path":"/Users/me/Archive/2024/photo.png","copy":true}}}
 ```
 
 Placing a text file (`.txt`) sets it as area type: `file.place {path | name+dataBase64, text?: {characterSet?:
@@ -2697,8 +2740,9 @@ OpenType `palt` feature; glyphs the font doesn't re-space keep their full width.
 the proportional heights of the font's `vpal` feature (the glyphs are shaped top to bottom for it) and move with them;
 a font without vertical metrics keeps its cells. Line-end Punctuation Half Width then takes nothing more off the
 punctuation `palt` or `vpal` re-spaced (the opening bracket at a line's start, consecutive punctuation, the closing
-mark at a line's end); punctuation left full width is trimmed as before. Off by default and saved only when on. One
-undo step.
+mark at a line's end); punctuation left full width is trimmed as before. With automatic kerning the font's kerning
+for the re-spaced glyphs comes too: `apkn` with `palt`, and `vkrn` and `vapk` with `vpal` (vertical type is otherwise
+not kerned). Off by default and saved only when on. One undo step.
 
 ```json
 {"name":"run_command","arguments":{"command":"text.setFormat","params":{"proportionalMetrics":true}}}
@@ -2887,8 +2931,9 @@ drive, are searched as any other folder is.
 `text.addFontFiles {files}` copies files that the session's last search found into VectorCraft's `Fonts` folder, then
 scans the fonts again, and type set in them redraws. It copies only regular `.ttf`, `.otf`, `.ttc`, `.otc`, `.woff`
 and `.woff2` files and suitcase fonts (with their resource fork), at most 256 MB a file and 1 GB in all, and lists any
-other file in `skipped`. It never replaces a file: a file with the same contents is kept (`kept`), and when another
-file has the name, the copy gets a number (`Name 2.otf`). Copy only fonts you own or are licensed to install. `command.batch` returns before a search ends; later requests over MCP or the control channel poll
+other file in `skipped`. It never replaces a file: the names `Name.otf`, `Name 2.otf` up to `Name 99.otf` are tried in
+turn until one is free, which gets the copy, or is a file with the same contents, which is kept (`kept`).
+Copy only fonts you own or are licensed to install. `command.batch` returns before a search ends; later requests over MCP or the control channel poll
 `text.findFontFiles {}`. `vectorcraft-cli run` stops the search when its last step ends. The web build has no Fonts
 folder and no folder search.
 

@@ -173,6 +173,7 @@
 	Horizontal Align Right	水平方向右に整列
 	Vertical Align Top	垂直方向上に整列
 	Vertical Align Center	垂直方向中央に整列
+	Horizontal & Vertical Align Center	水平方向および垂直方向中央に整列
 	Vertical Align Bottom	垂直方向下に整列
 	Group	グループ
 	Ungroup	グループ解除
@@ -2199,6 +2200,13 @@
 	Relink	再リンク
 	Relink to Folder…	フォルダーに再リンク…
 	Relink…	再リンク…
+	Find Linked Files	リンクファイルを検索
+	Find Linked Files in Folder…	フォルダー内のリンクファイルを検索…
+	Choose the file to relink each linked file to. Files with the size and contents saved with the link come first.	リンクファイルごとに、再リンク先のファイルを選んでください。リンクに保存されたサイズと内容が同じファイルが先頭に表示されます。
+	Same file	同じファイル
+	Same size	同じサイズ
+	Don't Relink	再リンクしない
+	Copy into the document's folder	ドキュメントのフォルダーにコピー
 	Remove	削除
 	Remove Asset	アセットを削除
 	Remove Brush Stroke	ブラシストロークを削除
@@ -2357,6 +2365,7 @@
 	Select All Instances	すべてのインスタンスを選択
 	Select All Unused	未使用項目をすべて選択
 	Select Anchors	アンカーを選択
+	Select Segments	パスのセグメントを選択
 	Select Appearance Item	アピアランス項目を選択
 	Select Freeform Point	フリーフォームポイントを選択
 	Select Gradient Stop	グラデーションの分岐点を選択
@@ -2983,6 +2992,23 @@
 	Gradient (.)	グラデーション (.)
 	Graph Data	グラフデータ
 	Graph Type	グラフの種類
+	Graph Design	グラフのデザイン
+	Graph Marker	グラフのマーカー
+	New Design	新規デザイン
+	Delete Design	デザインを削除
+	Paste Design	デザインをペースト
+	Select Unused	未使用を選択
+	Import Data…	データを読み込み…
+	Transpose	行と列を入れ替え
+	Switch x/y	X/Y を入れ替え
+	Number of Decimals:	小数点以下の桁数:
+	Column Width:	列の幅:
+	No Legend	凡例なし
+	Standard Legend	標準の凡例
+	Legends in Wedges	くさび形内に凡例
+	Ratio	比率
+	Even	均等
+	Stacked	積み重ね
 	Graphic Style Libraries Menu	グラフィックスタイルライブラリメニュー
 	Graphics	グラフィックス
 	Greek & Cyrillic	ギリシャ文字とキリル文字
@@ -3951,6 +3977,9 @@ theme	Appearance	外観
 @msg	larger than 256 MB	256 MB を超えています
 @msg	the files come to more than 1 GB: add fewer at a time	ファイルの合計が 1 GB を超えています: 一度に追加するファイルを減らしてください
 @msg	every numbered name for it is taken in the Fonts folder	Fonts フォルダーでは、このファイルの番号付きの名前がすべて使われています
+@msg	every numbered name for {name} is taken in the document's folder	ドキュメントのフォルダーでは、{name} の番号付きの名前がすべて使われています
+@msg	No linked files to look for	検索するリンクファイルがありません
+@msg	Relinked {n} image(s); {name} couldn't be relinked: {reason}	画像を {n} 枚再リンクしましたが、{name} は再リンクできませんでした: {reason}
 @msg	`id` is the step reference {r}, which only `run` and `command_batch` resolve	`id` はステップ参照 {r} です。ステップ参照を解決できるのは `run` と `command_batch` だけです
 @msg	`ids` must be an array of object ids, not {v}	`ids` はオブジェクト ID の配列にしてください ({v} は使えません)
 @msg	`corners` must be an array of anchor indices, not {v}	`corners` はアンカーポイントのインデックスの配列にしてください ({v} は使えません)
@@ -4161,3 +4190,9 @@ lighting	Light	ライト
 	Invalid hex color	無効な16進数カラー
 @msg	bad selection color key {v}	選択範囲のカラーキーが無効です {v}
 @msg	the color is not used in the selection	この色は選択範囲で使用されていません
+	Artistic	アーティスティック
+	Film Grain…	フィルム粒子…
+	Highlight Area	ハイライト領域
+@msg	the compressed file unpacks to more than VectorCraft reads ({_1} MB of document, {_2} MB per image)	圧縮ファイルを展開すると VectorCraft が読み込める量を超えます (ドキュメント {_1} MB、画像 1 枚あたり {_2} MB)
+@msg	the document is too large to save compressed ({0}): save it with Use Compression off	ドキュメントが大きすぎて圧縮保存できません ({0}): 「圧縮を使用」をオフにして保存してください
+@msg	the file stopped being read (please report this bug)	ファイルの読み込みが中断されました (このバグを報告してください)

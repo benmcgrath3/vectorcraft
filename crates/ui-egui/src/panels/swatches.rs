@@ -241,7 +241,10 @@ pub(crate) fn describe(paint: &Paint, global: bool, spot: bool) -> String {
             };
             crate::i18n::fmt(tl!("{kind}, {model}"), &[("kind", kind), ("model", color.model_name())])
         }
-        Paint::Gradient(g) => crate::i18n::fmt(tl!("{kind} Gradient"), &[("kind", tl!(g.gradient.kind.label()))]),
+        Paint::Gradient(g) => crate::i18n::fmt(
+            tl!("{kind} Gradient"),
+            &[("kind", crate::i18n::tr_ctx(crate::i18n::current(), "gradient-kind", g.gradient.kind.label()))],
+        ),
         Paint::Pattern { .. } => tl!("Pattern").into(),
         Paint::None => tl!("None").into(),
     }
@@ -511,7 +514,7 @@ fn move_params(d: &Document, names: &[String], target: Option<&str>, after: bool
         Some(t) => {
             let (group, list) = match d.swatch_group_of(t) {
                 Some(g) => (Some(d.swatch_groups[g].name.as_str()), &d.swatch_groups[g].swatches),
-                None => (None, &d.swatches),
+                None => (None, &*d.swatches),
             };
             (group, list.iter().position(|w| w.name == t).map(|i| i + usize::from(after)))
         }
@@ -1412,7 +1415,7 @@ mod tests {
         let d = &app.session.active().unwrap().doc;
         let list = match group {
             Some(g) => &d.swatch_groups.iter().find(|x| x.name == g).unwrap().swatches,
-            None => &d.swatches,
+            None => &*d.swatches,
         };
         list.iter().map(|w| w.name.clone()).collect()
     }

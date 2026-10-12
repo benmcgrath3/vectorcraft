@@ -53,15 +53,18 @@ use load::err;
 pub(crate) use load::import_svg;
 pub(crate) use load::native_file;
 pub(crate) use load::source;
-pub use load::{Loaded, RasterImage, detect, file_name, load, load_with, open_bytes, open_bytes_with, open_template, raster_image};
+pub use load::{
+    Loaded, RasterImage, ReadFile, detect, file_name, load, load_with, open_bytes, open_bytes_with, open_read, open_template, raster_image,
+    read_for_open,
+};
 pub use load::{losses_summary, overwrite_losses};
 pub(crate) use native::preview_png;
 pub use native::with_compression_pref;
 pub use pdfimport::{LoadOptions, page_document};
 pub(crate) use save::job_for;
 pub use save::{
-    SAVE_FORMATS, SaveJob, SaveMode, SavePlan, export_folder, save_filters, save_format, save_job, save_plan, save_with, stamp_save_dates,
-    templates_dialog_folder, templates_folder,
+    SAVE_FORMATS, SaveJob, SaveMode, SavePlan, StreamWrite, export_folder, save_filters, save_format, save_job, save_plan, save_with,
+    stamp_save_dates, templates_dialog_folder, templates_folder,
 };
 pub use screens::{PRESETS as SCREEN_PRESETS, ScreenSize, preset_rows as screen_preset_rows};
 pub(crate) use screens::{
@@ -245,7 +248,7 @@ const ARTBOARDS: FormatOption = FormatOption {
     name: "artboards",
     ty: "array",
     default: "null",
-    description: "0-based artboards (PDF: one page each, default all; SVG, and raster formats with useArtboards: one file each)",
+    description: "0-based artboards (PDF and AI: one page each, default all; SVG, and raster formats with useArtboards: one file each)",
 };
 const RANGE: FormatOption = FormatOption {
     name: "range",
@@ -260,7 +263,7 @@ const USE_ARTBOARDS: FormatOption = FormatOption {
     name: "useArtboards",
     ty: "boolean",
     default: "null",
-    description: "true: every chosen artboard (default all), one file each named <file>-<artboard>.<ext> (PDF: one page each); false: the bounds of the visible art",
+    description: "true: every chosen artboard (default all), one file each named <file>-<artboard>.<ext> (PDF and AI: one page each); false: the bounds of the visible art",
 };
 const PPI: FormatOption = FormatOption {
     name: "ppi",
@@ -769,6 +772,13 @@ pub(crate) fn write_file(path: &str, bytes: &[u8]) -> Result<()> {
     write_atomic(std::path::Path::new(path), bytes).map_err(|e| EngineError::Other(format!("{path}: {e}")))
 }
 
+/// [`write_file`] with what `fill` writes into the file (a save streamed into it).
+#[cfg(not(target_arch = "wasm32"))]
+pub fn write_file_with(path: &str, fill: &mut dyn FnMut(&mut dyn std::io::Write) -> std::io::Result<()>) -> Result<()> {
+    may_write(path)?;
+    vectorcraft_format::write_atomic_with(std::path::Path::new(path), |f| fill(f)).map_err(|e| EngineError::Other(format!("{path}: {e}")))
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn create_dir(path: &str) -> Result<()> {
     may_write(path)?;
@@ -790,6 +800,51 @@ pub(crate) fn write_new_file(path: &str, bytes: &[u8]) -> Result<()> {
         let _ = std::fs::remove_file(path);
         err(e)
     })
+}
+
+/// The highest number [`copy_new`] gives a copy's name (`Name 99.png`).
+#[cfg(not(target_arch = "wasm32"))]
+const MAX_COPY_NUMBER: u32 = 99;
+
+/// Where [`copy_new`] put a file.
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) enum Placed {
+    /// Copied to this new file.
+    Copied(std::path::PathBuf),
+    /// Kept as this file, which holds the same contents.
+    Kept(std::path::PathBuf),
+}
+
+/// Put a copy of the file `from` into the folder `dir`, never replacing a file there. It tries
+/// `Name.ext`, then `Name 2.ext` up to `Name 99.ext`, and stops at the first name that is free,
+/// where `create` makes the copy, or that is a file holding the same contents (`same`, given that
+/// file and its metadata), which is kept. When `create` fails with `AlreadyExists` (the name was
+/// taken meanwhile), it tries the next name. `None` when no name is free or holds the same
+/// contents; a name whose metadata can't be read counts as taken.
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn copy_new(
+    from: &std::path::Path,
+    dir: &std::path::Path,
+    create: impl Fn(&std::path::Path) -> std::io::Result<()>,
+    same: impl Fn(&std::path::Path, &std::fs::Metadata) -> bool,
+) -> std::io::Result<Option<Placed>> {
+    use std::io::ErrorKind;
+    let (Some(name), Some(stem)) = (from.file_name(), from.file_stem()) else { return Err(ErrorKind::InvalidInput.into()) };
+    let ext = from.extension().map(|e| format!(".{}", e.to_string_lossy())).unwrap_or_default();
+    for n in 1..=MAX_COPY_NUMBER {
+        let to = if n == 1 { dir.join(name) } else { dir.join(format!("{} {n}{ext}", stem.to_string_lossy())) };
+        match std::fs::symlink_metadata(&to) {
+            Err(e) if e.kind() == ErrorKind::NotFound => match create(&to) {
+                Ok(()) => return Ok(Some(Placed::Copied(to))),
+                // Taken meanwhile: the next name.
+                Err(e) if e.kind() == ErrorKind::AlreadyExists => {}
+                Err(e) => return Err(e),
+            },
+            Ok(m) if m.is_file() && same(&to, &m) => return Ok(Some(Placed::Kept(to))),
+            _ => {}
+        }
+    }
+    Ok(None)
 }
 
 /// The most entries `file.list` returns.
@@ -890,6 +945,11 @@ pub(crate) fn read_file(path: &str) -> Result<Vec<u8>> {
 
 #[cfg(target_arch = "wasm32")]
 pub(crate) fn write_file(path: &str, _: &[u8]) -> Result<()> {
+    Err(no_fs(path))
+}
+
+#[cfg(target_arch = "wasm32")]
+pub fn write_file_with(path: &str, _: &mut dyn FnMut(&mut dyn std::io::Write) -> std::io::Result<()>) -> Result<()> {
     Err(no_fs(path))
 }
 

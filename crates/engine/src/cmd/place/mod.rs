@@ -285,7 +285,7 @@ fn build(d: &mut Document, l: Loaded, link: Option<LinkInfo>) -> Node {
                 link,
                 placement: Default::default(),
             };
-            Node::new(d.alloc_id(), NodeKind::Image(im))
+            Node::new(d.alloc_id(), NodeKind::Image(Box::new(im)))
         }
         Art::Text(t) => Node::new(d.alloc_id(), NodeKind::Text(Box::new(text::area_text(t, l.natural)))),
         Art::Document(s, link, bounding) => document::node(d, &s, link, bounding),
@@ -303,7 +303,7 @@ fn build(d: &mut Document, l: Loaded, link: Option<LinkInfo>) -> Node {
 }
 
 /// `node` moved and scaled by `m` as a whole: strokes, effects and pattern tiles go along.
-fn transformed(mut node: Node, m: Affine) -> Node {
+pub(crate) fn transformed(mut node: Node, m: Affine) -> Node {
     node.transform(m, Scaling { strokes: true, effects: Some(vectorcraft_render::effects::scale_effect), ..Default::default() });
     adopt::each_mut(&mut node, &mut |n| vectorcraft_doc::pattern::transform_pattern_paints(n, m));
     node

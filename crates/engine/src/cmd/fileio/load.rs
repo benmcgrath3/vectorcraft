@@ -9,7 +9,7 @@ use vectorcraft_geom::Affine;
 use super::super::*;
 use super::pdfimport::LoadOptions;
 use super::{Format, SAVE_FORMATS, absolute_path, file_stamp, format, format_for_name, psdread, read_file};
-use crate::EngineError;
+use crate::{EngineError, Prefs};
 
 /// A file read into a document, with its format and non-fatal import notes.
 pub struct Loaded {
@@ -24,6 +24,18 @@ pub struct Loaded {
     /// Only a stand-in picture of the file (an Affinity document whose native data couldn't be
     /// read): Open shows it with its warning; Place, templates and libraries refuse it.
     pub preview_only: bool,
+}
+
+impl Loaded {
+    /// The file with the grid of Preferences › Guides & Grid, unless it is a native document (also
+    /// one that an SVG, PDF, `.ai` or EPS file carries, `restored`), which keeps the grid it was
+    /// saved with.
+    pub(crate) fn with_grid_prefs(mut self, prefs: &Prefs) -> Self {
+        if !self.restored && !matches!(self.format.id, "vectorcraft" | "template") {
+            self.doc.grid = prefs.grid();
+        }
+        self
+    }
 }
 
 /// An image ready to embed: PNG/JPEG/GIF/WebP keep their bytes, other formats are stored as PNG
@@ -271,8 +283,26 @@ pub fn open_bytes(s: &mut Session, name: &str, bytes: &[u8], path: Option<String
 
 /// [`open_bytes`] with the `document.open` options in `p` ([`LoadOptions::from_params`]).
 pub fn open_bytes_with(s: &mut Session, name: &str, bytes: &[u8], path: Option<String>, p: &Value) -> Result<Value> {
+    open_read(s, read_for_open(name, bytes, p)?, path)
+}
+
+/// A file read for `document.open` but not opened yet ([`read_for_open`], [`open_read`]).
+pub struct ReadFile {
+    loaded: Loaded,
+    opts: LoadOptions,
+}
+
+/// The first half of [`open_bytes_with`]: read and decode the file, which needs no session (an
+/// app may do it on another thread) → what [`open_read`] opens.
+pub fn read_for_open(name: &str, bytes: &[u8], p: &Value) -> Result<ReadFile> {
     let opts = LoadOptions::from_params("document.open", p)?;
-    open_loaded(s, load_with(name, bytes, &opts)?, path, &opts, false)
+    Ok(ReadFile { loaded: load_with(name, bytes, &opts)?, opts })
+}
+
+/// The second half of [`open_bytes_with`]: open a file [`read_for_open`] read as the new active
+/// document (`path`: where it was read from) → `document.open`'s result.
+pub fn open_read(s: &mut Session, file: ReadFile, path: Option<String>) -> Result<Value> {
+    open_loaded(s, file.loaded, path, &file.opts, false)
 }
 
 /// File → New from Template: any readable file (at `path`, if it is one: its links are looked for
@@ -289,7 +319,7 @@ pub fn open_template(s: &mut Session, name: &str, bytes: &[u8], path: Option<&st
 
 /// Make a loaded file the new active document; `opts` are the options it was read with.
 fn open_loaded(s: &mut Session, loaded: Loaded, path: Option<String>, opts: &LoadOptions, as_template: bool) -> Result<Value> {
-    let Loaded { mut doc, format, warnings, restored, converted, .. } = loaded;
+    let Loaded { mut doc, format, warnings, restored, converted, .. } = loaded.with_grid_prefs(&s.prefs);
     // What reading the file left out of the document, if anything.
     let losses: Vec<String> = warnings.iter().filter(|w| is_loss(w)).cloned().collect();
     let source_path = path.clone().filter(|_| !losses.is_empty());
@@ -418,7 +448,8 @@ pub(super) fn raster_doc(name: &str, bytes: &[u8]) -> Result<Document> {
     let layer = d.layers[0].id;
     let id = d.alloc_id();
     let xf = Affine::scale_non_uniform(sx, sy);
-    let mut n = Node::new(id, NodeKind::Image(ImageObject { key: key.clone(), width, height, xf, link: None, placement: Default::default() }));
+    let mut n =
+        Node::new(id, NodeKind::Image(Box::new(ImageObject { key: key.clone(), width, height, xf, link: None, placement: Default::default() })));
     n.name = Some(name.to_string());
     d.images.insert(key, blob);
     d.insert(Some(layer), 0, n).map_err(err)?;

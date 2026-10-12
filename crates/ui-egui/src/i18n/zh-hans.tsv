@@ -1071,6 +1071,23 @@
 	Graph	图表
 	Graph Data	图表数据
 	Graph Type	图表类型
+	Graph Design	图表设计
+	Graph Marker	图表标记
+	New Design	新建设计
+	Delete Design	删除设计
+	Paste Design	粘贴设计
+	Select Unused	选择未使用项
+	Import Data…	导入数据…
+	Transpose	转置
+	Switch x/y	切换 x/y
+	Number of Decimals:	小数位数：
+	Column Width:	列宽：
+	No Legend	无图例
+	Standard Legend	标准图例
+	Legends in Wedges	楔形中的图例
+	Ratio	比例
+	Even	平均
+	Stacked	堆积
 	Graphic Style	图形样式
 	Graphic Style Libraries	图形样式库
 	Graphic Style Libraries Menu	图形样式库菜单
@@ -2137,6 +2154,13 @@
 	Relinked {n} image(s); not in that folder: {}	已重新链接 {n} 张图像；不在该文件夹中：{}
 	Relinked {} image(s)	已重新链接 {} 张图像
 	Relink…	重新链接…
+	Find Linked Files	查找链接文件
+	Find Linked Files in Folder…	在文件夹中查找链接文件…
+	Choose the file to relink each linked file to. Files with the size and contents saved with the link come first.	请为每个链接文件选择要重新链接到的文件。大小和内容与链接中保存的相同的文件排在最前面。
+	Same file	相同文件
+	Same size	相同大小
+	Don't Relink	不重新链接
+	Copy into the document's folder	复制到文档所在的文件夹
 	Reload Plug-ins	重新载入增效工具
 	Remove	移除
 	Remove Anchor Points	移除锚点
@@ -2375,6 +2399,7 @@
 	Select an image to see its Link Info.	选择图像以查看其链接信息。
 	Select an image to trace	选择要描摹的图像
 	Select Anchors	选择锚点
+	Select Segments	选择路径段
 	Select Appearance Item	选择外观项目
 	Select art and choose Object › Pattern › Make.	选择图稿并选择“对象 › 图案 › 创建”。
 	Select art and click New Symbol to make one.	选择图稿并单击“新建符号”以创建。
@@ -3011,6 +3036,7 @@
 	Vertical %	垂直 %
 	Vertical Align Bottom	垂直底对齐
 	Vertical Align Center	垂直居中对齐
+	Horizontal & Vertical Align Center	水平和垂直居中对齐
 	Vertical Align Top	垂直顶对齐
 	Vertical Area Type Tool	直排区域文字工具
 	Vertical Distribute Bottom	垂直分布下缘
@@ -3765,3 +3791,6 @@ lighting	Light	光源
 	Invalid hex color	无效的十六进制颜色
 @msg	bad selection color key {v}	所选颜色键无效 {v}
 @msg	the color is not used in the selection	所选对象未使用此颜色
+	Artistic	艺术效果
+	Film Grain…	胶片颗粒…
+	Highlight Area	高光区域

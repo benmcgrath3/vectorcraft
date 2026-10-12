@@ -1121,6 +1121,23 @@
 	Graph	Gráfico
 	Graph Data	Datos del gráfico
 	Graph Type	Tipo de gráfico
+	Graph Design	Diseño de gráfico
+	Graph Marker	Marcador de gráfico
+	New Design	Nuevo diseño
+	Delete Design	Eliminar diseño
+	Paste Design	Pegar diseño
+	Select Unused	Seleccionar no utilizados
+	Import Data…	Importar datos…
+	Transpose	Transponer
+	Switch x/y	Intercambiar x/y
+	Number of Decimals:	Número de decimales:
+	Column Width:	Ancho de columna:
+	No Legend	Sin leyenda
+	Standard Legend	Leyenda estándar
+	Legends in Wedges	Leyendas en cuñas
+	Ratio	Proporción
+	Even	Igual
+	Stacked	Apilado
 	Graphic Style	Estilo gráfico
 	Graphic Style Libraries	Bibliotecas de estilos gráficos
 	Graphic Style Libraries Menu	Menú Bibliotecas de estilos gráficos
@@ -2215,6 +2232,13 @@
 	Relinked {n} image(s); not in that folder: {}	Se volvieron a vincular {n} imagen(es); no están en esa carpeta: {}
 	Relinked {} image(s)	Se volvieron a vincular {} imagen(es)
 	Relink…	Volver a vincular…
+	Find Linked Files	Buscar archivos vinculados
+	Find Linked Files in Folder…	Buscar archivos vinculados en una carpeta…
+	Choose the file to relink each linked file to. Files with the size and contents saved with the link come first.	Elige el archivo con el que volver a vincular cada archivo vinculado. Los archivos con el tamaño y el contenido guardados con el vínculo aparecen primero.
+	Same file	Mismo archivo
+	Same size	Mismo tamaño
+	Don't Relink	No volver a vincular
+	Copy into the document's folder	Copiar en la carpeta del documento
 	Reload Plug-ins	Volver a cargar plugins
 	Remove	Quitar
 	Remove Anchor Points	Quitar puntos de ancla
@@ -2483,6 +2507,7 @@
 	Select an image to see its Link Info.	Selecciona una imagen para ver su información de vínculo.
 	Select an image to trace	Selecciona una imagen para calcar
 	Select Anchors	Seleccionar anclas
+	Select Segments	Seleccionar segmentos
 	Select Appearance Item	Seleccionar elemento de apariencia
 	Select Art	Seleccionar ilustración
 	Select art and choose Object › Pattern › Make.	Selecciona una ilustración y elige Objeto › Motivo › Crear.
@@ -3120,6 +3145,7 @@
 	Vertical %	% vertical
 	Vertical Align Bottom	Alinear abajo verticalmente
 	Vertical Align Center	Alinear centros verticalmente
+	Horizontal & Vertical Align Center	Alinear centros horizontal y verticalmente
 	Vertical Align Top	Alinear arriba verticalmente
 	Vertical Area Type Tool	Herramienta Texto de área vertical
 	Vertical Distribute Bottom	Distribuir abajo verticalmente
@@ -3936,6 +3962,9 @@ axis	Both	Ambos
 @msg	larger than 256 MB	mayor de 256 MB
 @msg	the files come to more than 1 GB: add fewer at a time	los archivos suman más de 1 GB: agrega menos a la vez
 @msg	every numbered name for it is taken in the Fonts folder	todos los nombres numerados para él ya existen en la carpeta Fonts
+@msg	every numbered name for {name} is taken in the document's folder	todos los nombres numerados para {name} ya existen en la carpeta del documento
+@msg	No linked files to look for	No hay archivos vinculados que buscar
+@msg	Relinked {n} image(s); {name} couldn't be relinked: {reason}	Se volvieron a vincular {n} imagen(es); no se pudo volver a vincular {name}: {reason}
 
 # The macOS menu bar (native_menu): the app and Window menus' system items, Settings pages.
 	Services	Servicios
@@ -4165,3 +4194,9 @@ lighting	Light	Luz
 	Invalid hex color	Color hexadecimal no válido
 @msg	bad selection color key {v}	clave de color de selección no válida {v}
 @msg	the color is not used in the selection	el color no se utiliza en la selección
+	Artistic	Artístico
+	Film Grain…	Granulado de película…
+	Highlight Area	Área de iluminaciones
+@msg	the compressed file unpacks to more than VectorCraft reads ({_1} MB of document, {_2} MB per image)	el archivo comprimido ocupa al descomprimirse más de lo que VectorCraft lee ({_1} MB de documento, {_2} MB por imagen)
+@msg	the document is too large to save compressed ({0}): save it with Use Compression off	el documento es demasiado grande para guardarlo comprimido ({0}): guárdelo con Usar compresión desactivado
+@msg	the file stopped being read (please report this bug)	se dejó de leer el archivo (informe de este error)

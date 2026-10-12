@@ -322,8 +322,19 @@ pub(super) fn schema_fields(ui: &mut egui::Ui, d: &mut Dialog, specs: &[(String,
                     crate::widgets::range_field(ui, ("plugin-num", k), x, *min..=*max, "", 2, 100.0).map(|x| json!(x))
                 }
                 ParamSpec::Int { min, max, .. } => {
-                    let x = cur.as_i64().unwrap_or(*min) as f64;
-                    crate::widgets::range_field(ui, ("plugin-int", k), x, *min as f64..=*max as f64, "", 0, 100.0).map(|x| json!(x as i64))
+                    let x = cur.as_i64().unwrap_or(*min).clamp(*min, *max);
+                    // An f64 holds every whole number up to 2^53, so the numeric field (arrows, wheel, arithmetic) is exact there.
+                    // Past it, the number typed is read as an integer.
+                    const EXACT: i64 = 1 << 53;
+                    if -EXACT <= *min && *max <= EXACT {
+                        crate::widgets::range_field(ui, ("plugin-int", k), x as f64, *min as f64..=*max as f64, "", 0, 100.0).map(|x| json!(x as i64))
+                    } else {
+                        let shown = x.to_string();
+                        crate::widgets::take_dialog_focus(ui, ui.id().with(("plugin-int", k)), &shown);
+                        crate::widgets::text_field(ui, ("plugin-int", k), Some(&shown), 100.0, 1)
+                            .and_then(|text| text.parse::<i64>().ok())
+                            .map(|x| json!(x.clamp(*min, *max)))
+                    }
                 }
                 ParamSpec::Bool { .. } => {
                     let b = cur.as_bool().unwrap_or(false);
@@ -469,6 +480,19 @@ pub(super) const PREVIEWED: &str = "__previewed";
 /// again on the interaction's snapshot whenever they differ from the last preview (whether a widget
 /// or `ui.dialog.set` changed them); turning it off rolls back.
 pub(super) fn preview(app: &mut crate::VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog, label: &str, cmd: &str, params: Value) {
+    let _ = preview_result(app, ui, d, label, cmd, params);
+}
+
+/// As [`preview`], returning the command's result only when a new preview succeeds.
+/// A dialog can retain a small summary (such as point counts) in its private fields.
+pub(super) fn preview_result(
+    app: &mut crate::VectorcraftApp,
+    ui: &mut egui::Ui,
+    d: &mut Dialog,
+    label: &str,
+    cmd: &str,
+    params: Value,
+) -> Option<Value> {
     const LAST: &str = PREVIEWED;
     ui.add_space(8.0);
     let mut on = d.bool("preview");
@@ -480,15 +504,18 @@ pub(super) fn preview(app: &mut crate::VectorcraftApp, ui: &mut egui::Ui, d: &mu
         if d.fields.remove(LAST).is_some() {
             let _ = app.session.cancel_interaction();
         }
-        return;
+        return None;
     }
+    let mut result = None;
     if d.fields.get(LAST) != Some(&params) || !app.session.in_interaction() {
         let _ = app.session.begin_interaction(label);
-        if let Err(e) = app.session.preview(cmd, &params) {
-            app.status(e.to_string());
+        match app.session.preview(cmd, &params) {
+            Ok(r) => result = Some(r),
+            Err(e) => app.status(e.to_string()),
         }
         d.fields.insert(LAST.into(), params);
     }
+    result
 }
 
 /// OK of a dialog using [`preview`]: keep the previewed `cmd` as one undo step (or run it when no

@@ -158,6 +158,38 @@ fn color_mode_gradient_uses_at_most_n_colors() {
 }
 
 #[test]
+fn color_mode_separates_close_dark_tones() {
+    // Eight stripes one level apart (32..=39): a fixed 5-bit-per-channel histogram put them all in
+    // one bin, so `colors: 8` gave a single colour and a single path.
+    let img = Raster::from_fn(128, 32, |x, _| {
+        let v = 32 + (x / 16) as u8;
+        [v, v, v, 255]
+    });
+    let params = TraceParams { mode: Mode::Color, colors: 8, noise: 0, method: Method::Abutting, ..TraceParams::default() };
+    let res = trace(&img, &params);
+    let mut tones: Vec<u8> = res.palette.iter().map(|c| c[0]).collect();
+    tones.sort_unstable();
+    assert_eq!(tones, (32..=39).collect::<Vec<u8>>());
+    assert_eq!(res.paths.len(), 8);
+}
+
+#[test]
+fn color_mode_full_range_and_transparent_inputs() {
+    // Full-range input keeps working.
+    let img = Raster::from_fn(256, 4, |x, _| [x as u8, 255 - x as u8, 0, 255]);
+    let q = quantize(&img, &TraceParams { mode: Mode::Color, colors: 6, ..TraceParams::default() });
+    assert!((2..=6).contains(&q.palette.len()), "{}", q.palette.len());
+    // A fully transparent image has no traced pixel and does not fail.
+    let clear = Raster::from_fn(8, 8, |_, _| [10, 20, 30, 0]);
+    let q = quantize(&clear, &TraceParams { mode: Mode::Color, colors: 4, ..TraceParams::default() });
+    assert!(q.labels.iter().all(|&l| l == TRANSPARENT));
+    // Deterministic.
+    let a = quantize(&img, &TraceParams { mode: Mode::Color, colors: 6, ..TraceParams::default() });
+    let b = quantize(&img, &TraceParams { mode: Mode::Color, colors: 6, ..TraceParams::default() });
+    assert_eq!(a, b);
+}
+
+#[test]
 fn grayscale_levels() {
     let img = Raster::from_fn(256, 8, |x, _| [x as u8, x as u8, x as u8, 255]);
     let q = quantize(&img, &TraceParams { mode: Mode::Grayscale, colors: 4, ..TraceParams::default() });
@@ -353,6 +385,28 @@ fn an_image_too_large_to_trace_is_refused_before_decoding() {
     let err = Raster::decode(&png_header(30_000, 30_000)).unwrap_err();
     assert!(matches!(err, TraceError::TooLarge { width: 30_000, height: 30_000, .. }), "{err}");
     assert!(matches!(Raster::decode(&png_header(64, 64)), Err(TraceError::Decode(_))), "a small header goes on to decoding");
+}
+
+/// An image over the tracer's size is scaled down to fit rather than refused; only one too large
+/// to decode at all is refused, from its header.
+#[test]
+fn decode_to_fit_scales_an_oversized_image_down() {
+    // Within the limit: decoded as it is.
+    let img = disc(32, 16.0, 16.0, 10.0);
+    assert_eq!(Raster::decode_to_fit(&img.encode_png()).unwrap(), img);
+    // 8958 × 8958 (a 300 ppi scan, 80 megapixels) fits in the limit with its aspect kept.
+    let (w, h) = crate::fit_size(8958, 8958, MAX_PIXELS);
+    assert_eq!(w, h);
+    assert!(u64::from(w) * u64::from(h) <= MAX_PIXELS && w > 8000, "{w}");
+    let (w, h) = crate::fit_size(40_000, 3000, MAX_PIXELS);
+    assert!(u64::from(w) * u64::from(h) <= MAX_PIXELS && (f64::from(w) / f64::from(h) - 40.0 / 3.0).abs() < 0.01, "{w} × {h}");
+    assert_eq!(crate::fit_size(100_000, 1, 10), (10, 1));
+    assert_eq!(crate::fit_size(640, 480, MAX_PIXELS), (640, 480));
+    // Past the decoding limit: refused before decoding.
+    let err = Raster::decode_to_fit(&png_header(30_000, 30_000)).unwrap_err();
+    assert!(matches!(err, TraceError::TooLarge { width: 30_000, height: 30_000, max: 192 }), "{err}");
+    // Between the two limits the header is accepted and decoding goes on (this one has no pixels).
+    assert!(matches!(Raster::decode_to_fit(&png_header(9000, 9000)), Err(TraceError::Decode(_))));
 }
 
 /// Four flat colours with anti-aliased (blended) edges between the quadrants.

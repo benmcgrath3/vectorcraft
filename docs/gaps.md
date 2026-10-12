@@ -1,6 +1,6 @@
 # Gaps
 
-> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-12 · **Change:** minor (Properties Selection Colors: edit one used colour across selected artwork with live preview, Cancel and one-step Undo; scores and estimates unchanged; local artboard attachment, dimension editing, deletion-key and external-text paste fixes retained; G15: large-selection edits, cached live effects and faster Pathfinder, #1173; G4: proportional vertical metrics done, #966; G11: Shape Builder merge seams on grids of lines fixed, #893; scaled text controls corrected, #1034; group font-size preservation deferred) · **Target:** Adobe Illustrator 2026 (30.x)
+> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-12 · **Change:** minor (Czech render-site localization follow-up; scores and estimates unchanged; Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged; Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged; G11: valid selection after Simplify and Add Anchor Points (#1272); estimates unchanged; G2: Film Grain added; Photoshop effects 29/57; 28 filters remain; G10: RPM runtime dependency metadata (#1275); estimates unchanged; G15: texture-effect distance searches optimized (#1257); idle-machine/platform drag QA still pending; estimate unchanged; G1: Curvature point display improved (#1236, in part); estimates unchanged; G4: full-name font matching (#1258); Windows font-service QA pending; estimate unchanged; G11: no-op anchor Align keeps history and saved state (#1180 follow-up); estimates unchanged; G1: dedicated Eyedropper cursor and precise-cursor checks (#1269); estimates unchanged; G1: Eyedropper reads visible locked and outside-isolation sources (#1251); estimate unchanged; G11: Direct Selection segment Delete (#1278); estimates unchanged; G1: painted strokes regain the existing default after None/zero-width inheritance (#1253); estimate unchanged; G15: large-selection edits, cached live effects and faster Pathfinder, #1173; G4: proportional vertical metrics done, #966; G11: Shape Builder merge seams on grids of lines fixed, #893; scaled text controls corrected, #1034; group font-size preservation deferred) · **Target:** Adobe Illustrator 2026 (30.x)
 
 Every known shortfall against Illustrator, one entry each, **ranked by how much it stops a professional from
 switching**. This is the work list: unless you were given a task, pick the highest-ranked gap you can make
@@ -22,7 +22,7 @@ stage ([ROADMAP.md](../ROADMAP.md)).
 | 5 | [G11 Correctness bugs in core tools](#g11-correctness-bugs-in-core-tools) | 8–15 | yes | [target-app-parity.md](target-app-parity.md) |
 | 6 | [G4 Advanced type](#g4-advanced-type) | 34–47 | core part | [type-parity.md](type-parity.md) |
 | 7 | [G12 Preferences and panels that don't act yet](#g12-preferences-and-panels-that-dont-act-yet) | 13–20 | yes | [ui-parity.md](ui-parity.md) |
-| 8 | [G2 Photoshop-style raster effects and the Effect Gallery](#g2-photoshop-style-raster-effects-and-the-effect-gallery) | 24–40 | no | [effects-parity.md](effects-parity.md) |
+| 8 | [G2 Photoshop-style raster effects and the Effect Gallery](#g2-photoshop-style-raster-effects-and-the-effect-gallery) | 23–39 | no | [effects-parity.md](effects-parity.md) |
 | 9 | [G13 Illustrator 2026 (30.x) additions](#g13-illustrator-2026-30x-additions) | 15–25 | no | [target-app-parity.md](target-app-parity.md) |
 | 10 | [G14 Pen hardware beyond Windows pressure](#g14-pen-hardware-beyond-windows-pressure) | 8–16 | macOS pressure | [hardware-parity.md](hardware-parity.md) |
 | 11 | [G5 Brushes, symbols and libraries](#g5-brushes-symbols-and-libraries) | 17–28 | no | [target-app-parity.md](target-app-parity.md) |
@@ -43,6 +43,16 @@ from G14 and the budget run of G15: **~170–270 h** one agent, ~50–80 h wall 
 
 ## G1 Interaction fidelity
 
+- **Done:** Document Setup → Edit Artboards applies valid settings, closes the dialog and activates the Artboard tool. Pointer-click tests cover successful handoff, invalid settings, OK, Cancel and Undo in `dialogs/document_setup.rs`.
+
+- **Improved:** Curvature uses circular point markers without direction handles or duplicate markers
+  (#1236, in part); real egui frames cover creation, existing paths, Anchor Size and Hide Edges.
+  The request to change interpolation of existing paths remains open.
+- **Improved:** Eyedropper has an original pipette cursor at its sampling tip; Use Precise
+  Cursors keeps the crosshair. Bitmap/DPI and preference checks cover the distinction (#1269).
+  OS cursor display and Caps Lock remain unverified.
+- **Done (#1251):** Eyedropper source reads are independent of locks and isolation, including Shift/Shift+Alt and gradient stops. Source and selection preservation, unchanged Alt reverse/selection restrictions, hidden art and Undo/Redo have regression coverage. This addresses the reported behavior, with no new full-parity measurement.
+- **Done (#1253):** adding paint to an unpainted zero-width stroke restores the existing 1 pt default, including new-art defaults and Swap Fill/Stroke. The real Eyedropper inheritance sequence, targeted appearance items, preserved widths and Undo/Redo have regression coverage.
 - **Missing:** a tool-by-tool, panel-by-panel pass over modifiers, cursors, the Properties panel per context,
   isolation mode and small behaviours, against the public tool and shortcut documentation. Itemized in
   [ui-parity.md](ui-parity.md). The Shaper's construction-mode widget and gesture refinements remain.
@@ -67,6 +77,7 @@ from G14 and the budget run of G15: **~170–270 h** one agent, ~50–80 h wall 
 
 ## G10 Launch and stability on real machines
 
+- **Done:** RPM required dependencies use 64-bit library capabilities and declare glibc 2.35, libm and libgcc_s (#1275); generated metadata and isolated synthetic-provider checks cover x86_64/aarch64. Real-distribution install/start-up QA is still missing.
 - **Missing:** the app not starting or staying in the background on some Windows 11 machines (#858, #964 fixed
   2026-10-10, #620, #818), slow pointer on a Linux AppImage (#575), other reported macOS clipboard cases (#954, still need reporter verification), a
   web-free crash/hang reporter, a field record.
@@ -86,15 +97,14 @@ from G14 and the budget run of G15: **~170–270 h** one agent, ~50–80 h wall 
 
 ## G11 Correctness bugs in core tools
 
-- **Done:** pasting external text into an existing text object reads the current system clipboard through Edit › Paste and Command-V. Unicode, multiline text, selected-range replacement, destination size and undo/redo are covered.
+- **Done:** Escape leaves Artboard editing for Selection; during a drag it first cancels the gesture. Headless egui key events cover idle Escape, active-drag cancellation and a subsequent Escape in `tests_distortkeys.rs`.
 
-- **Done:** Backspace/Delete in artboard editing deletes selected boards with undo, keeps artwork intact, and synchronizes the navigator. Attempts to delete the last/all artboards show the existing one-artboard restriction and keep both artwork and board selection.
-
-- **Done:** selecting an Artboards panel row enters artboard editing and exposes the selected board’s X/Y/W/H in Properties and Transform. Real-panel tests cover independent width/height edits and undo.
-
-- **Done:** pasted artwork is associated with its active artboard by stable id and moves with it beyond its edges. Object › Attach to Active Artboard / Detach from Artboard covers existing artwork; native save/reopen and undo retain the association.
-
+- **Done:** Simplify and Add Anchor Points clear stale component selections on rewritten paths; Simplify previews and reports original/new point counts (#1272).
+- **Done:** no-op anchor Align preserves Undo, Redo, saved state and path geometry (#1180 follow-up),
+  with the same 1e-9 pt tolerance as whole-object Align; actual alignment remains one undo step.
 - **Done:** scaled text's size and horizontal-scale controls account for object/group transforms (#1034),
+- **Done:** Direct Selection picks a segment independently of its anchors and Delete preserves neighboring edges (#1278);
+  scaled text's size and horizontal-scale controls account for object/group transforms (#1034),
   including exact sizes across grouped labels and resetting horizontal stretch while keeping editable text.
 - **Missing:** Shape Builder misses planar regions and targets whole shapes (#937); Transform effect dialog's invisible checkboxes and missing options (#885);
   PDF text boxes moving on open (#722); SVG units reverting to points (#864); bezier drag preview freezing (#834).
@@ -103,6 +113,7 @@ from G14 and the budget run of G15: **~170–270 h** one agent, ~50–80 h wall 
 
 ## G4 Advanced type
 
+- **Improved (#1258):** full font names (name ID 4) resolve the face instead of falling back, and Missing Fonts searches recognize the same aliases. Synthetic regressions cover loaded/cataloged fonts, localized names, real-family precedence and variable default faces. Windows font-service activation still needs reporter QA; estimate unchanged.
 - **Missing:** hyphenation and justification options, Optical Margin Alignment (type core); CJK vertical
   composition (ruby, mojikumi sets and dialog, kinsoku settings #633, manual tate-chu-yoko), Middle Eastern
   features beyond bidi and digit types (Character Direction, kashidas, composers), variable font axes, spell check with an open dictionary,
@@ -123,12 +134,12 @@ from G14 and the budget run of G15: **~170–270 h** one agent, ~50–80 h wall 
 
 ## G2 Photoshop-style raster effects and the Effect Gallery
 
-- **Missing:** 29 of 57 filters (all of Artistic and Sketch), the Effect Gallery dialog, Load
+- **Missing:** 28 of 57 filters (the remaining 14 Artistic filters and all of Sketch), the Effect Gallery dialog, Load
   Texture for Glass and Texturizer, Smart Blur's Edge Only and Overlay Edge. Measured in
   [effects-parity.md](effects-parity.md).
-- **Done:** the pixel-filter pipeline and 28 filters (Blur, Brush Strokes, Distort, Pixelate, Sharpen, Stylize,
-  Texture, Video), Brush Strokes on 2026-10-11.
-- **Estimate:** 24–40 h (measured 0.7–1.2 h per filter); parallelizes well.
+- **Done:** the pixel-filter pipeline and 29 filters (Artistic: Film Grain, Blur, Brush Strokes, Distort, Pixelate, Sharpen, Stylize,
+  Texture, Video), Brush Strokes on 2026-10-11 and Film Grain on 2026-10-12.
+- **Estimate:** 23–39 h (measured 0.7–1.2 h per filter); parallelizes well.
 
 ## G13 Illustrator 2026 (30.x) additions
 
@@ -176,6 +187,7 @@ from G14 and the budget run of G15: **~170–270 h** one agent, ~50–80 h wall 
 
 ## G15 Performance budgets and a GPU renderer
 
+- **Improved (#1257):** Craquelure, Mosaic Tiles and Stained Glass reuse squared distances during nearest-cell searches, with the original distance ordering retained near rounding/tie boundaries. A brute-force boundary regression and full-viewport pixel comparisons agree with the old result. `texture_drag_perf` reproduces a moved CMYK rounded rectangle at 190.07% and DPI 1.5; timings from a busy development machine are supporting evidence, with idle Windows drag QA still pending.
 - **Missing:** an idle-machine run of `vectorcraft-cli perf` at 50k paths (last: 2026-10-11 at 25k paths, every
   budget met, 400% zoom 12.3 ms against 16 ms, measured), a spatial index for zoomed-in frames, dirty-region
   rendering, the GPU backend spike (M5). Large-selection edits, cached live effects and Pathfinder Trim, Merge,
@@ -183,6 +195,8 @@ from G14 and the budget run of G15: **~170–270 h** one agent, ~50–80 h wall 
 - **Estimate:** 15–25 h (the budget run and fixes block beta).
 
 ## G16 Localization: the five missing key languages
+
+- **Evidence:** Czech render-site bypasses reduced in file dialogs, diagnostics, preset names and contributor tooltips; gradient grammar and printer-mark context corrected (see [localization-parity.md](localization-parity.md)). Native review and the missing-language work remain; estimate unchanged.
 
 - **Missing:** Hindi, Arabic, Indonesian, Korean, Vietnamese catalogs; a right-to-left interface and interface
   shaping for Arabic and Devanagari; messages for Simplified Chinese and Brazilian Portuguese; native review of
@@ -214,11 +228,20 @@ from G14 and the budget run of G15: **~170–270 h** one agent, ~50–80 h wall 
 
 | Date | Change | Summary |
 |---|---|---|
-| 2026-10-12 | minor | Properties Selection Colors: edit one used colour across selected artwork with live preview, Cancel and one-step Undo; scores and estimates unchanged; grouped selection and freeform-point recoloring regressions |
-| 2026-10-12 | minor | Existing type: menu paste and Command-V read fresh clipboard text; multiline Unicode, formatting retention and undo tested. Scores and hours unchanged. |
-| 2026-10-12 | minor | G11: artboard deletion keys preserve artwork and board selection on rejected deletion; estimates unchanged |
-| 2026-10-11 | minor | G11: Artboards row selection shows editable board dimensions; estimates unchanged |
-| 2026-10-11 | minor | G11: pasted and explicitly attached objects follow their artboard outside its bounds; estimates unchanged |
+| 2026-10-11 | minor | Czech render-site follow-up: file-dialog filters, diagnostics, preset numbering, contributor tooltips/plurals, gradient grammar and contextual printer mark styles; estimates unchanged |
+| 2026-10-12 | minor | Document Setup: Edit Artboards closes the modal after applying valid settings; pointer-click regressions; scores and hours unchanged |
+| 2026-10-12 | minor | Artboards: Escape exits editing; an active drag cancels first; shortcut-routing regression; scores and hours unchanged |
+| 2026-10-12 | minor | G11: clear stale component refs after Simplify/Add Anchor Points; preview and point counts give visible feedback (#1272); estimates unchanged |
+| 2026-10-12 | minor | G2: Artistic › Film Grain added with live controls and raster exports; measured Photoshop filters 29/57, 28 remaining (23–39 h). |
+| 2026-10-12 | minor | G10: RPM required dependencies and glibc floor metadata checked (#1275); real-distro install/start-up QA remains; estimates unchanged |
+| 2026-10-12 | minor | G15: texture-effect distance searches optimized (#1257); idle-machine/platform drag QA still pending; estimate unchanged |
+| 2026-10-12 | minor | G1: Curvature point display improved; existing-path interpolation request remains open (#1236, in part); estimates unchanged |
+| 2026-10-12 | minor | G4: full-name font matching and Missing Fonts searches verified (#1258); Windows font-service QA pending; estimate unchanged |
+| 2026-10-12 | minor | G11: no-op anchor Align no longer consumes Undo, clears Redo or marks saved paths modified (#1180 follow-up); estimate unchanged |
+| 2026-10-12 | minor | G1: Eyedropper uses an original pipette glyph; precise setting and DPI checks verified (#1269); estimates unchanged |
+| 2026-10-12 | minor | G1: Eyedropper reads visible locked and outside-isolation sources (#1251); estimate unchanged |
+| 2026-10-12 | minor | G11: Direct Selection segment Delete retains neighboring geometry and appearance (#1278); estimates unchanged |
+| 2026-10-12 | minor | G1: painted strokes regain the existing default after None/zero-width inheritance (#1253); estimate unchanged |
 | 2026-10-11 | minor | G15: large-selection edits, cached live effects and faster Pathfinder (#1173); a 25k-path perf run meets every budget; estimate unchanged |
 | 2026-10-11 | minor | G4: Middle Eastern digit types done (Character panel menu › Digits); estimate unchanged |
 | 2026-10-11 | minor | G4: proportional vertical metrics (#966) done; estimate unchanged |
@@ -232,3 +255,5 @@ from G14 and the budget run of G15: **~170–270 h** one agent, ~50–80 h wall 
 | 2026-10-10 | major | Moved from the ROADMAP's "Where we're lacking"; kept ids G1–G8, added G9–G19 (file formats, stability, bugs, preferences, 30.x additions, pen hardware, performance, localization, ecosystem, AI, accessibility) and re-ranked |
 
 - 2026-10-12: Type-tool clicks on empty canvas leave the document unchanged; a drag creates an area-text frame. Existing-text clicks and dedicated area/path-type conversion remain available. User-requested workflow; parity scores unchanged.
+
+Local workflows retained in the 2026-10-12 upstream sync: persistent artboard artwork attachment beyond bounds; editable artboard dimensions; Backspace deletion with last-artboard protection; external text paste into existing text; Properties Selection Colors with scoped replacement and Undo; drag-only canvas text creation.

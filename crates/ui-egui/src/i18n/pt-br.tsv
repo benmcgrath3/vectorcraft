@@ -594,6 +594,8 @@
 	Description:	Descrição:
 	Deselect	Desmarcar
 	Design…	Projeto…
+	Graph Design	Projeto do gráfico
+	Graph Marker	Marcador do gráfico
 	Destination:	Destino:
 	Detail:	Detalhe:
 	Devices	Dispositivos
@@ -2070,6 +2072,7 @@
 	Select All Instances	Selecionar Todas as Instâncias
 	Select All Unused	Selecionar Todos os Não Usados
 	Select Anchors	Selecionar Âncoras
+	Select Segments	Selecionar segmentos
 	Select Appearance Item	Selecionar Item de Aparência
 	Select Freeform Point	Selecionar Ponto Livre
 	Select Gradient Stop	Selecionar Parada de Gradiente
@@ -2563,6 +2566,7 @@
 	Vertical	Vertical
 	Vertical Align Bottom	Alinhar Inferior Verticalmente
 	Vertical Align Center	Alinhar Centro Verticalmente
+	Horizontal & Vertical Align Center	Alinhar Centro Horizontal e Verticalmente
 	Vertical Align Top	Alinhar Superior Verticalmente
 	Vertical Area Type Tool	Ferramenta Texto Vertical de Área
 	Vertical Distribute Space	Distribuir Espaço Verticalmente
@@ -3674,3 +3678,10 @@ axis	Both	Ambos
 	Invalid hex color	Cor hexadecimal inválida
 @msg	bad selection color key {v}	chave de cor da seleção inválida {v}
 @msg	the color is not used in the selection	a cor não é usada na seleção
+	Artistic	Artístico
+	Film Grain…	Granulação de filme…
+	Grain	Grão
+	Highlight Area	Área de realces
+@msg	the compressed file unpacks to more than VectorCraft reads ({_1} MB of document, {_2} MB per image)	o arquivo compactado se expande para mais do que o VectorCraft lê ({_1} MB de documento, {_2} MB por imagem)
+@msg	the document is too large to save compressed ({0}): save it with Use Compression off	o documento é grande demais para ser salvo compactado ({0}): salve-o com Usar Compressão desativado
+@msg	the file stopped being read (please report this bug)	a leitura do arquivo foi interrompida (informe este erro)

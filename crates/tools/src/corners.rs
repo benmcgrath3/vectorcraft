@@ -54,14 +54,14 @@ impl PathWidgets {
     /// The widgets of path `id` at `zoom` (screen px per document point), if it has any: any path
     /// with Direct Selection (`any_path`), live rectangles and polygons with Selection.
     fn of(doc: &Document, selection: &Selection, id: NodeId, zoom: f64, any_path: bool) -> Option<Self> {
-        if !doc.is_editable(id) {
+        if !doc.is_editable(id) || selection.segments.contains_key(&id) {
             return None;
         }
         let NodeKind::Path { path, live, .. } = &doc.node(id)?.kind else { return None };
-        if !any_path && !matches!(live, Some(LiveShape::Rectangle { .. } | LiveShape::Polygon { .. })) {
+        if !any_path && !matches!(live.as_deref(), Some(LiveShape::Rectangle { .. } | LiveShape::Polygon { .. })) {
             return None;
         }
-        let lc = LiveCorners::new(path, live.as_ref())?;
+        let lc = LiveCorners::new(path, live.as_deref())?;
         let det = lc.xf.determinant().abs();
         if det < 1e-12 {
             return None;
@@ -366,7 +366,7 @@ mod tests {
         let id = d.alloc_id();
         let mut n = Node::path(id, path, Appearance::default_art());
         if let NodeKind::Path { live: slot, .. } = &mut n.kind {
-            *slot = live;
+            *slot = live.map(Box::new);
         }
         d.insert(Some(l), 0, n).unwrap();
         (d, id)
@@ -440,7 +440,7 @@ mod tests {
         let b = d.alloc_id();
         let mut n = Node::path(b, live.to_path(), Appearance::default_art());
         if let NodeKind::Path { live: slot, .. } = &mut n.kind {
-            *slot = Some(live);
+            *slot = Some(Box::new(live));
         }
         let l = d.layers[0].id;
         d.insert(Some(l), 1, n).unwrap();

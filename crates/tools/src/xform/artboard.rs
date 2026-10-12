@@ -341,10 +341,11 @@ impl Tool for ArtboardTool {
         }
     }
 
-    /// Delete/Backspace belong to artboards ahead of Clear, including when the last-artboard
-    /// constraint rejects the deletion. They must never fall through to deleting selected art.
+    /// Escape returns to Selection. Delete and Backspace stay with artboards even when the
+    /// last-artboard restriction rejects deletion, so selected artwork cannot be cleared.
     fn claims_key(&self, cx: &ToolContext, key: ToolKey) -> bool {
-        matches!(key, ToolKey::Delete | ToolKey::Backspace) && self.drag.is_none() && self.active < cx.doc.artboards.len()
+        matches!(key, ToolKey::Escape)
+            || (matches!(key, ToolKey::Delete | ToolKey::Backspace) && self.drag.is_none() && self.active < cx.doc.artboards.len())
     }
 
     fn key(&mut self, cx: &ToolContext, key: ToolKey, _mods: Mods) -> Vec<Action> {

@@ -72,7 +72,15 @@ pub fn specs() -> Vec<CommandSpec> {
             has_selection,
             shear
         ),
-        cmd!("object.transformAgain", "Transform Again", ["Object", "Transform"], Some("Cmd+D"), "{}", has_selection, transform_again),
+        cmd!(
+            "object.transformAgain",
+            "Transform Again",
+            ["Object", "Transform"],
+            Some("Cmd+D"),
+            "{copy?, strokes?, corners?, patterns?, typeAreas?: bool (as object.transform's; default: the value the transform it repeats used, else object.transform's default)} the last transform's matrix on the selection (after a perspective move or scale: that plane-space transform, without these params)",
+            has_selection,
+            transform_again
+        ),
         cmd!(
             "object.nudge",
             "Nudge",
@@ -253,8 +261,8 @@ pub(crate) fn transform_patterns(s: &mut Session, p: &Value, ids: &[NodeId]) -> 
 }
 
 /// Apply `xf` to `ids` (`copy` param: duplicate first; `strokes`/`corners`: see [`scaling`];
-/// `patterns`: see [`transform_patterns`]; `typeAreas`: see [`resize_type_area`]). Records
-/// Transform Again.
+/// `patterns`: see [`transform_patterns`]; `typeAreas`: see [`resize_type_area`]). Outside an
+/// interaction, records `xf` and the options it used for Transform Again.
 pub(crate) fn apply_transform(s: &mut Session, label: &str, ids: Vec<NodeId>, xf: Affine, p: &Value) -> Result<Value> {
     let copy = bool_or(p, "copy", false);
     let areas = bool_or(p, "typeAreas", false);
@@ -284,7 +292,12 @@ pub(crate) fn apply_transform(s: &mut Session, label: &str, ids: Vec<NodeId>, xf
     };
     let st = s.doc_mut()?;
     if st.interaction.is_none() {
-        st.last_transform = Some((xf, copy));
+        let mut options = json!({ "copy": copy, "typeAreas": areas, "patterns": sc.patterns });
+        if Scaling::factor(xf).is_some() {
+            options["strokes"] = json!(sc.strokes);
+            options["corners"] = json!(!sc.keep_corners);
+        }
+        st.last_transform = Some((xf, options));
         st.last_perspective = None;
     }
     Ok(json!({ "ids": ids.iter().map(|i| i.0).collect::<Vec<_>>() }))
@@ -294,7 +307,7 @@ pub(crate) fn apply_transform(s: &mut Session, label: &str, ids: Vec<NodeId>, xf
 /// reflows at its size. False for anything else (and type in perspective), which transforms as
 /// usual.
 fn resize_type_area(n: &mut Node, xf: Affine) -> bool {
-    if n.perspective.is_some() {
+    if n.extras().perspective.is_some() {
         return false;
     }
     let NodeKind::Text(t) = &mut n.kind else { return false };
@@ -393,13 +406,18 @@ fn shear(s: &mut Session, p: &Value) -> Result<Value> {
     apply_transform(s, "Shear", ids, about(o, m), p)
 }
 
-fn transform_again(s: &mut Session, _: &Value) -> Result<Value> {
+/// The last transform's matrix on the selection, with the options `last_transform` keeps for it; an
+/// option that `p` sets to true or false (a recorded Transform Again's) takes precedence.
+fn transform_again(s: &mut Session, p: &Value) -> Result<Value> {
     if let Some(again) = s.doc()?.last_perspective.clone() {
         return super::distortcmds::transform_again(s, &again);
     }
-    let (m, copy) = s.doc()?.last_transform.ok_or_else(|| EngineError::Other("no previous transform".into()))?;
+    let (m, mut options) = s.doc()?.last_transform.clone().ok_or_else(|| EngineError::Other("no previous transform".into()))?;
+    if let (Some(o), Some(given)) = (options.as_object_mut(), p.as_object()) {
+        o.extend(given.iter().filter(|(_, v)| v.is_boolean()).map(|(k, v)| (k.clone(), v.clone())));
+    }
     let ids = selected_roots(s)?;
-    apply_transform(s, "Transform Again", ids, m, &json!({ "copy": copy }))
+    apply_transform(s, "Transform Again", ids, m, &options)
 }
 
 enum Arrange {
@@ -461,6 +479,11 @@ fn send_to_current_layer(s: &mut Session, _: &Value) -> Result<Value> {
     // Ids are reused after undo: the remembered current layer must still be a layer.
     let st = s.doc()?;
     let layer = st.current_layer().or_else(|| st.doc.default_layer()).ok_or_else(|| EngineError::Other("no current layer".into()))?;
+    // When the current layer is hidden or locked, or is inside a hidden or locked layer, the
+    // command fails with the error that `DocState::target_parent` gives for new art.
+    if !st.doc.is_editable(layer) {
+        return Err(EngineError::Other("the target layer is locked or hidden".into()));
+    }
     // When the selected objects are already the topmost in the current layer, in paint order, the
     // document and its undo history stay as they are.
     if st.doc.children(Some(layer)).is_some_and(|c| c.iter().rev().map(|n| n.id).take(ids.len()).eq(ids.iter().rev().copied())) {
@@ -841,7 +864,7 @@ fn isolate(s: &mut Session, p: &Value) -> Result<Value> {
     if st.doc.node(id).is_none_or(|n| !n.is_container()) {
         return Err(bad("object.isolate", "only groups and layers can be isolated"));
     }
-    let isolation = st.doc.node(id).filter(|n| n.shaper.is_some()).and_then(|n| n.children()).and_then(|c| c.first()).map_or(id, |n| n.id);
+    let isolation = st.doc.node(id).filter(|n| n.extras().shaper.is_some()).and_then(|n| n.children()).and_then(|c| c.first()).map_or(id, |n| n.id);
     st.isolation = Some(isolation);
     st.selection.clear();
     st.revision += 1;
@@ -852,7 +875,7 @@ fn exit_isolation(s: &mut Session, _: &Value) -> Result<Value> {
     let st = s.doc_mut()?;
     if let Some(i) = st.isolation.take() {
         super::distortcmds::finish_edit_text(st, i);
-        let target = st.doc.parent_of(i).filter(|p| st.doc.node(*p).is_some_and(|n| n.shaper.is_some())).unwrap_or(i);
+        let target = st.doc.parent_of(i).filter(|p| st.doc.node(*p).is_some_and(|n| n.extras().shaper.is_some())).unwrap_or(i);
         st.selection.set([target]);
     }
     st.revision += 1;
@@ -917,10 +940,9 @@ fn set_props(s: &mut Session, p: &Value) -> Result<Value> {
             && flag("isolate").is_none_or(|v| n.isolate == v)
             && knockout.is_none_or(|k| n.knockout == k)
             && flag("knockoutShape").is_none_or(|v| n.knockout_shape == v)
-            && data
-                .iter()
-                .flatten()
-                .all(|(k, v)| n.attrs.as_ref().and_then(|a| a.data.iter().find(|(key, _)| key == k)).map(|(_, now)| now.as_str()) == v.as_deref())
+            && data.iter().flatten().all(|(k, v)| {
+                n.extras().attrs.as_ref().and_then(|a| a.data.iter().find(|(key, _)| key == k)).map(|(_, now)| now.as_str()) == v.as_deref()
+            })
     };
     let d = &s.doc()?.doc;
     if ids.iter().all(|id| d.node(*id).is_some_and(has_values)) {
@@ -1148,6 +1170,12 @@ fn align_anchors(s: &mut Session, p: &Value, ids: &[NodeId], (h, v): (Option<&st
         };
         Point::new(x, y)
     };
+    if pts.iter().all(|q| {
+        let dv = target(*q) - *q;
+        dv.x.abs() <= 1e-9 && dv.y.abs() <= 1e-9
+    }) {
+        return ok();
+    }
     s.edit("Align", |d, _| {
         for (id, refs) in &targets {
             let path = super::path::path_mut(d, *id)?;
@@ -1385,7 +1413,7 @@ fn set_live_shape(s: &mut Session, p: &Value) -> Result<Value> {
     let st = s.doc()?;
     let has_values = |id: &NodeId| {
         let Some(NodeKind::Path { path, live, .. }) = st.doc.node(*id).map(|n| &n.kind) else { return true };
-        match live {
+        match live.as_deref() {
             Some(l @ LiveShape::Polygon { sides: now, .. })
                 if !(sides.is_none_or(|n| n.clamp(3, 1000) == u64::from(*now))
                     && (!equal || l.polygon_sides_equal())
@@ -1400,11 +1428,11 @@ fn set_live_shape(s: &mut Session, p: &Value) -> Result<Value> {
         if radius.is_none() && kind.is_none() {
             return true;
         }
-        let Some(c) = LiveCorners::new(path, live.as_ref()) else { return true };
+        let Some(c) = LiveCorners::new(path, live.as_deref()) else { return true };
         let picked = corners_of(*id).unwrap_or_else(|| c.picked(st.selection.anchors.get(id)));
         // Setting corners folds a scale left in a rectangle's transform into its size, which
         // changes it.
-        live.as_ref().is_none_or(|l| l.folded() == *l)
+        live.as_deref().is_none_or(|l| l.folded() == *l)
             && picked
                 .iter()
                 .all(|k| *k < c.base.anchor_count() && radius.is_none_or(|r| c.radius(*k) == r.max(0.0)) && kind.is_none_or(|kd| c.kind(*k) == kd))
@@ -1415,7 +1443,7 @@ fn set_live_shape(s: &mut Session, p: &Value) -> Result<Value> {
     s.edit("Live Shape", |d, sel| {
         for id in &ids {
             let Some(NodeKind::Path { path, live, .. }) = d.node_mut(*id).map(|n| &mut n.kind) else { continue };
-            if let Some(l @ LiveShape::Polygon { .. }) = live.as_mut()
+            if let Some(l @ LiveShape::Polygon { .. }) = live.as_deref_mut()
                 && (sides.is_some() || polygon_angle.is_some() || polygon_radius.is_some() || side.is_some() || equal)
             {
                 if let Some(n) = sides {
@@ -1433,7 +1461,7 @@ fn set_live_shape(s: &mut Session, p: &Value) -> Result<Value> {
                 }
                 *path = l.to_path();
             }
-            if let Some(l @ LiveShape::Ellipse { .. }) = live.as_mut()
+            if let Some(l @ LiveShape::Ellipse { .. }) = live.as_deref_mut()
                 && (pie_start.is_some() || pie_end.is_some() || invert)
             {
                 if let LiveShape::Ellipse { pie, .. } = l {
@@ -1446,7 +1474,7 @@ fn set_live_shape(s: &mut Session, p: &Value) -> Result<Value> {
             }
             let partial = sel.anchors.get_mut(id);
             // The corners to edit, the Direct-Selected ones and the anchor layout before the edit.
-            let Some(c) = LiveCorners::new(path, live.as_ref()) else { continue };
+            let Some(c) = LiveCorners::new(path, live.as_deref()) else { continue };
             let corners = corners_of(*id);
             let picked = match &corners {
                 Some(k) if k.last().is_some_and(|k| *k >= c.base.anchor_count()) => {
@@ -1461,7 +1489,7 @@ fn set_live_shape(s: &mut Session, p: &Value) -> Result<Value> {
             set_corners(path, live, &picked, radius, kind);
             // Direct-Selected corners stay selected as they gain or lose anchors.
             if let (Some(anchors), Some(selected)) = (partial, selected)
-                && let Some(c) = LiveCorners::new(path, live.as_ref())
+                && let Some(c) = LiveCorners::new(path, live.as_deref())
                 && c.sources() != layout
             {
                 *anchors = c.anchors_of(&selected);
