@@ -119,6 +119,34 @@ fn paste_goes_to_the_centre_of_the_view() {
 
 const SVG: &str = r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 10"><rect width="5" height="5"/><circle cx="15" cy="5" r="5"/></svg>"##;
 
+#[test]
+fn artboard_attachment_paste_uses_active_board_even_outside_it_and_drag_takes_art() {
+    use vectorcraft_geom::{Rect, Vec2};
+    use vectorcraft_tools::{PointerEvent, PointerKind};
+    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    run(&mut app, "file.new", json!({"width": 400, "height": 300}));
+    let source = rect(&mut app);
+    copy(&mut app, source);
+    run(&mut app, "artboard.new", json!({"x": 500, "y": 0, "width": 400, "height": 300}));
+    app.select_tool("artboard");
+    crate::panels::artboards::select(&mut app, 1);
+    let v = app.view_mut().unwrap();
+    (v.center, v.fitted) = (Point::new(950.0, 350.0), true);
+    let pasted = NodeId(run(&mut app, "edit.paste", json!({}))["ids"][0].as_u64().unwrap());
+    let doc = &app.session.active().unwrap().doc;
+    assert_eq!(doc.node(pasted).unwrap().artboard, Some(doc.artboards[1].id));
+    let before = doc.node(pasted).unwrap().geometric_bounds().unwrap();
+    let view = vectorcraft_engine::ViewInfo::default();
+    crate::canvas::dispatch(&mut app, &PointerEvent::new(PointerKind::Down, 700.0, 150.0), view);
+    crate::canvas::dispatch(&mut app, &PointerEvent::new(PointerKind::Drag, 750.0, 180.0), view);
+    crate::canvas::dispatch(&mut app, &PointerEvent::new(PointerKind::Up, 750.0, 180.0), view);
+    let doc = &app.session.active().unwrap().doc;
+    assert_eq!(doc.artboards[1].rect, Rect::new(550.0, 30.0, 950.0, 330.0));
+    assert_eq!(doc.node(pasted).unwrap().geometric_bounds().unwrap(), before + Vec2::new(50.0, 30.0));
+    run(&mut app, "edit.undo", json!({}));
+    assert_eq!(app.session.active().unwrap().doc.node(pasted).unwrap().geometric_bounds().unwrap(), before);
+}
+
 /// An app whose system clipboard holds `text`, with a document, after one frame.
 fn with_system_clipboard(text: &'static str) -> VectorcraftApp {
     let services = Services { clipboard_read: Some(Box::new(move || Some(text.to_string()))), ..Default::default() };

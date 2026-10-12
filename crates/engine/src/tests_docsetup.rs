@@ -32,8 +32,8 @@ fn create_text(s: &mut Session, t: &str) -> NodeId {
 fn type_at(s: &mut Session, x: f64, y: f64, keys: &[&str]) -> NodeId {
     let v = ViewInfo::default();
     s.select_tool("type", v).unwrap();
-    for k in [PointerKind::Down, PointerKind::Up] {
-        s.pointer(&PointerEvent::new(k, x, y), v).unwrap();
+    for (k, px, py) in [(PointerKind::Down, x, y), (PointerKind::Drag, x + 200.0, y + 60.0), (PointerKind::Up, x + 200.0, y + 60.0)] {
+        s.pointer(&PointerEvent::new(k, px, py), v).unwrap();
     }
     let id = s.doc().unwrap().selection.objects[0];
     for k in keys {

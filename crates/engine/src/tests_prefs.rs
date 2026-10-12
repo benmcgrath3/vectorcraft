@@ -518,6 +518,15 @@ fn align_and_distribute_follow_transform_pattern_tiles() {
 /// move with the square or its copy, and `patterns: false` keeps them in place for one call.
 #[test]
 fn art_moved_with_its_artboard_follows_transform_pattern_tiles() {
+    check_artboard_pattern_tiles(false);
+}
+
+#[test]
+fn attached_art_outside_its_artboard_follows_transform_pattern_tiles() {
+    check_artboard_pattern_tiles(true);
+}
+
+fn check_artboard_pattern_tiles(attached: bool) {
     use vectorcraft_color::Paint;
     let mut s = new_doc();
     let plain = square(&mut s, 500.0, 0.0);
@@ -525,14 +534,19 @@ fn art_moved_with_its_artboard_follows_transform_pattern_tiles() {
     s.execute("object.pattern.make", &json!({"name": "Dots", "width": 20, "height": 20})).unwrap();
     s.execute("object.pattern.done", &json!({})).unwrap();
     s.execute("artboard.new", &json!({"x": 1000, "y": 0, "width": 400, "height": 400})).unwrap();
-    let filled = square(&mut s, 1100.0, 100.0);
+    let filled = square(&mut s, if attached { 1700.0 } else { 1100.0 }, 100.0);
     s.execute("paint.setFill", &json!({"ids": [filled.0], "swatch": "Dots"})).unwrap();
+    if attached {
+        s.execute("select.set", &json!({"ids": [filled.0]})).unwrap();
+        s.execute("artboard.attach", &json!({"artboard": 1})).unwrap();
+    }
     let tiles = |s: &Session, id: NodeId| match s.doc().unwrap().doc.node(id).unwrap().appearance.fill_paint() {
         Paint::Pattern { xf, .. } => xf.as_coeffs(),
         p => panic!("not a pattern: {p:?}"),
     };
-    // Artboard 1 starts at x 1000 and holds the square; artboard 0 holds no art, and `plain` is on
-    // no artboard. Duplicate Artboard puts the copy 20 pt right of the last artboard, artboard 1, so
+    // Artboard 1 starts at x 1000 and owns the square (inside, or attached outside its bounds);
+    // artboard 0 holds no art, and `plain` is on no artboard. Duplicate Artboard puts the copy
+    // 20 pt right of the last artboard, artboard 1, so
     // the art's copy is 420 pt right of the square. Rearranged in a row, artboard 1 moves to x 420,
     // 20 pt right of artboard 0, and `artboard.setProps` puts it at x 1030. `moved` and `ids` name
     // the art moved or its copies.
@@ -669,7 +683,7 @@ fn new_type_starts_with_placeholder_text() {
             _ => panic!("not text"),
         }
     };
-    gesture(&mut s, v, &[(Down, 50.0, 50.0), (Up, 50.0, 50.0)]);
+    gesture(&mut s, v, &[(Down, 50.0, 50.0), (Drag, 150.0, 100.0), (Up, 150.0, 100.0)]);
     let placeholder = text(&s);
     assert!(placeholder.len() > 10, "{placeholder}");
     assert_eq!((s.tool_options()["start"].clone(), s.tool_options()["end"].clone()), (json!(0), json!(placeholder.len())), "selected");
@@ -679,7 +693,7 @@ fn new_type_starts_with_placeholder_text() {
     gesture(&mut s, v, &[(Down, 100.0, 150.0), (Drag, 300.0, 300.0), (Up, 300.0, 300.0)]);
     assert!(text(&s).len() > placeholder.len());
     set_pref(&mut s, "placeholderText", json!(false));
-    gesture(&mut s, v, &[(Down, 50.0, 350.0), (Up, 50.0, 350.0)]);
+    gesture(&mut s, v, &[(Down, 50.0, 350.0), (Drag, 150.0, 400.0), (Up, 150.0, 400.0)]);
     assert_eq!(text(&s), "");
 }
 

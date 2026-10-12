@@ -881,20 +881,36 @@ fn rearrange_artboards(s: &mut Session, p: &Value) -> Result<Value> {
     if deltas.iter().all(|dl| dl.x.abs() <= 1e-9 && dl.y.abs() <= 1e-9) {
         return Ok(json!({ "artboards": count, "rows": rows, "columns": cols }));
     }
-    // With moveArtwork, each top-level object moves with the artboard its center is on; locked and
-    // hidden art moves only when prefs moveLockedWithArtboard is on.
+    // Gather against the original layout: attached art follows its owner outside the board;
+    // unassigned top-level art retains the centre-based rearrangement rule.
     let art: Vec<(NodeId, Vec2)> = if move_art {
-        d.layers
+        let tops: Vec<(NodeId, Point)> = d
+            .layers
             .iter()
             .filter(|l| l.rides_with_artboard(locked_and_hidden))
             .flat_map(|l| l.children().into_iter().flatten())
             .filter(|n| n.rides_with_artboard(locked_and_hidden))
-            .filter_map(|n| {
-                let c = n.geometric_bounds()?.center();
-                let dl = *rects.iter().position(|r| r.contains(c)).and_then(|i| deltas.get(i))?;
-                (dl != Vec2::ZERO).then_some((n.id, dl))
+            .filter(|n| {
+                let mut attached = false;
+                n.walk(&mut |c| attached |= c.artboard.is_some_and(|id| d.artboards.iter().any(|a| a.id == id)));
+                !attached
             })
-            .collect()
+            .filter_map(|n| Some((n.id, n.geometric_bounds()?.center())))
+            .collect();
+        let legacy_roots: std::collections::BTreeSet<_> = tops.iter().map(|(id, _)| *id).collect();
+        let attached = deltas.iter().enumerate().flat_map(|(i, dl)| {
+            d.art_for_artboard(i, locked_and_hidden)
+                .into_iter()
+                .filter(|id| d.ancestry(*id).is_some_and(|anc| !anc.iter().any(|a| legacy_roots.contains(a))))
+                .map(move |id| (id, *dl))
+        });
+        let mut moved = std::collections::BTreeSet::new();
+        let mut art: Vec<_> = attached.filter(|(id, dl)| moved.insert(*id) && *dl != Vec2::ZERO).collect();
+        art.extend(tops.into_iter().filter_map(|(id, c)| {
+            let dl = *rects.iter().position(|r| r.contains(c)).and_then(|i| deltas.get(i))?;
+            (!moved.contains(&id) && dl != Vec2::ZERO).then_some((id, dl))
+        }));
+        art
     } else {
         vec![]
     };

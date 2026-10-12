@@ -11,6 +11,7 @@
 use egui::{Rect, Sense, Ui, vec2};
 use serde_json::{Value, json};
 use vectorcraft_color::cms::{self, Lab};
+use vectorcraft_color::recolor::ColorKey;
 use vectorcraft_color::{Color, Paint};
 use vectorcraft_doc::ColorMode;
 use vectorcraft_engine::cmd::color_value;
@@ -173,15 +174,35 @@ fn proxy_color(app: &VectorcraftApp, stroke: bool) -> Color {
 /// `ui.colorPicker {stroke?, color?}`: open the picker for the fill (or stroke) proxy, starting
 /// from `color` or the proxy's colour.
 pub fn open(app: &mut VectorcraftApp, p: &Value) -> Result<Value, String> {
+    let replace = match p.get("replace") {
+        None => None,
+        Some(v) => {
+            let key = v.as_str().and_then(ColorKey::parse).ok_or_else(|| format!("bad selection color key {v}"))?;
+            let color = key.color();
+            let key = key.to_string();
+            let palette = app.session.execute("recolor.colors", &json!({})).map_err(|e| e.to_string())?;
+            if !palette
+                .get("colors")
+                .and_then(Value::as_array)
+                .is_some_and(|cs| cs.iter().any(|c| c.get("key").and_then(Value::as_str) == Some(&key)))
+            {
+                return Err("the color is not used in the selection".into());
+            }
+            Some((key, color))
+        }
+    };
     let stroke = p.get("stroke").and_then(Value::as_bool).unwrap_or(!app.session.fill_active);
     let color = match p.get("color") {
         Some(v) => color_value(v).ok_or_else(|| format!("bad color {v}"))?,
-        None => proxy_color(app, stroke),
+        None => replace.as_ref().map_or_else(|| proxy_color(app, stroke), |(_, c)| *c),
     };
     let mut d = Dialog::new(
         KIND,
         json!({"stroke": stroke, "original": color_json(&color), "channel": Channel::default().id(), "webOnly": false, "swatches": false}),
     );
+    if let Some((key, _)) = replace {
+        d.fields.insert("__replace".into(), json!(key));
+    }
     store(&mut d, &Picked::of(color));
     app.ui.dialog = Some(d);
     Ok(Value::Null)
@@ -266,7 +287,14 @@ fn preview(app: &mut VectorcraftApp, d: &mut Dialog) {
     if unchanged || !selected {
         return;
     }
-    let _ = app.session.begin_interaction(if d.bool("stroke") { "Stroke Color" } else { "Fill Color" });
+    let label = if d.fields.contains_key("__replace") {
+        "Selection Color"
+    } else if d.bool("stroke") {
+        "Stroke Color"
+    } else {
+        "Fill Color"
+    };
+    let _ = app.session.begin_interaction(label);
     if let Err(e) = app.session.preview(cmd, &params) {
         app.status(e.to_string());
     }
@@ -277,6 +305,9 @@ fn preview(app: &mut VectorcraftApp, d: &mut Dialog) {
 /// document).
 fn paint_command(app: &VectorcraftApp, d: &Dialog) -> (&'static str, Value) {
     let mut c = picked(d).color;
+    if let Some(key) = d.fields.get("__replace") {
+        return ("recolor.apply", json!({"map": [{"from": [key], "to": color_json(&c)}], "includeImages": false}));
+    }
     if matches!(c, Color::Rgb { .. }) && app.session.active().is_some_and(|s| s.doc.color_mode == ColorMode::Cmyk) {
         let [cy, m, y, k] = c.to_cmyk_managed(cms::active().settings().intent);
         c = Color::cmyk(cy, m, y, k);
@@ -568,5 +599,66 @@ mod tests {
         app.run("ui.colorPicker", json!({"color": "#ff0000"})).unwrap();
         super::super::confirm(&mut app).unwrap();
         assert!(matches!(crate::panels::current_paints(&app).0.color(), Some(Color::Cmyk { .. })));
+    }
+
+    #[test]
+    fn selection_color_picker_replaces_only_matching_paints_and_previews_as_one_step() {
+        let mut app = app();
+        let first = app.session.doc().unwrap().selection.objects[0];
+        app.run("paint.setFill", json!({"color": "#000000"})).unwrap();
+        app.run("paint.setStroke", json!({"none": true})).unwrap();
+        let second = app.run("shape.rectangle", json!({"x": 80, "y": 10, "width": 50, "height": 50})).unwrap()["id"].as_u64().unwrap();
+        app.run("paint.setFill", json!({"color": "#ff0000"})).unwrap();
+        app.run("paint.setStroke", json!({"color": "#000000"})).unwrap();
+        let outside = app.run("shape.rectangle", json!({"x": 150, "y": 10, "width": 30, "height": 50})).unwrap()["id"].as_u64().unwrap();
+        app.run("paint.setFill", json!({"color": "#000000"})).unwrap();
+        app.run("select.set", json!({"ids": [first.0, second]})).unwrap();
+        let before = app.session.doc().unwrap().history.undo.len();
+        let paint = |app: &VectorcraftApp, id, stroke| {
+            let n = app.session.doc().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap();
+            (if stroke { n.appearance.stroke_paint() } else { n.appearance.fill_paint() }).color().unwrap().to_hex()
+        };
+        app.run("ui.colorPicker", json!({"replace": "rgb 0 0 0"})).unwrap();
+        frame(&mut app);
+        assert!(!app.session.in_interaction());
+        for hex in ["00ff00", "3366cc"] {
+            app.ui.dialog.as_mut().unwrap().fields.insert("hex".into(), json!(hex));
+            frame(&mut app);
+            assert_eq!(paint(&app, first.0, false), format!("#{hex}"));
+            assert_eq!(paint(&app, second, true), format!("#{hex}"));
+            assert_eq!(paint(&app, second, false), "#ff0000");
+            assert_eq!(paint(&app, outside, false), "#000000");
+        }
+        super::super::confirm(&mut app).unwrap();
+        assert_eq!(app.session.doc().unwrap().history.undo.len(), before + 1);
+        app.run("edit.undo", json!({})).unwrap();
+        assert_eq!(paint(&app, first.0, false), "#000000");
+        assert_eq!(paint(&app, second, true), "#000000");
+        app.run("edit.redo", json!({})).unwrap();
+        assert_eq!(paint(&app, first.0, false), "#3366cc");
+        app.run("ui.colorPicker", json!({"replace": "rgb 51 102 204"})).unwrap();
+        app.ui.dialog.as_mut().unwrap().fields.insert("hex".into(), json!("ffffff"));
+        frame(&mut app);
+        assert_eq!(paint(&app, first.0, false), "#ffffff");
+        super::super::cancel(&mut app);
+        assert_eq!(paint(&app, first.0, false), "#3366cc");
+        assert_eq!(app.session.doc().unwrap().history.undo.len(), before + 1);
+    }
+
+    #[test]
+    fn selection_color_picker_validates_its_target_and_can_confirm_without_a_frame() {
+        let mut app = app();
+        let original = app.session.doc().unwrap().doc.clone();
+        for replace in [json!("rgb 0 255 0"), json!("#ffffff"), json!([]), json!(null), json!("rgb NaN 0 0")] {
+            assert!(app.run("ui.colorPicker", json!({"replace": replace})).is_err());
+            assert!(app.ui.dialog.is_none());
+            assert!(std::sync::Arc::ptr_eq(&original, &app.session.doc().unwrap().doc));
+        }
+        app.run("ui.colorPicker", json!({"replace": "rgb 255 255 255"})).unwrap();
+        app.ui.dialog.as_mut().unwrap().fields.insert("hex".into(), json!("FF7900"));
+        super::super::confirm(&mut app).unwrap();
+        assert_eq!(fill_hex(&app), "#ff7900");
+        app.run("select.none", json!({})).unwrap();
+        assert!(app.run("ui.colorPicker", json!({"replace": "rgb 255 121 0"})).is_err());
     }
 }

@@ -494,6 +494,10 @@ fn one() -> f32 {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Node {
     pub id: NodeId,
+    /// Artboard this artwork moves with, by stable id rather than list position. None keeps
+    /// the spatial behavior of older documents. An attachment can extend past the board's edges.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub artboard: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     #[serde(default = "yes", skip_serializing_if = "crate::skip::is_true")]
@@ -586,6 +590,7 @@ impl Node {
     pub fn new(id: NodeId, kind: NodeKind) -> Self {
         Self {
             id,
+            artboard: None,
             name: None,
             visible: true,
             locked: false,
@@ -613,6 +618,16 @@ impl Node {
         let mut n = Self::new(id, NodeKind::Path { path, rule: FillRule::NonZero, live: None, clipping: false, guide: false });
         n.appearance = appearance.into();
         n
+    }
+    /// Attach a whole piece of artwork, including its children (so ungrouping keeps the
+    /// association). Clipboard imports use this to replace document-local source board ids.
+    pub fn attach_artboard(&mut self, artboard: Option<u32>) {
+        self.artboard = artboard;
+        if let Some(children) = self.children_mut() {
+            for child in children {
+                Arc::make_mut(child).attach_artboard(artboard);
+            }
+        }
     }
     pub fn group(id: NodeId, children: Vec<Arc<Node>>) -> Self {
         Self::new(id, NodeKind::Group { children, clip: false })

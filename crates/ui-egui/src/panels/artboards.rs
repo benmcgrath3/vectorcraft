@@ -2,7 +2,8 @@
 //! delete; a row dragged onto New Artboard duplicates its artboard (as Duplicate Artboards does, with
 //! its art when the Artboard tool's Move/Copy Artwork with Artboard is on). The highlighted row is the active artboard, the one the status bar's navigator shows and
 //! Fit Artboard in Window fits: clicking a row makes it active, double-clicking its number also
-//! fits it in the window.
+//! fits it in the window. Selecting a row enters artboard editing so Properties and Transform
+//! show that artboard's editable position and dimensions.
 
 use egui::{Sense, Ui, pos2, vec2};
 use serde_json::{Value, json};
@@ -165,6 +166,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
                 if resp.clicked() && several && app.session.tool_id() == "artboard" {
                     toggle(app, i, abs.len());
                 } else if resp.clicked() {
+                    app.select_tool("artboard");
                     select(app, i);
                 }
                 // Double-clicking the number goes to the artboard (fits it in the window); the name
@@ -277,9 +279,62 @@ mod tests {
             frame(&mut app, vec![e]);
         }
         assert_eq!(app.view().unwrap().artboard, 1, "Artboard 2 is active");
+        assert_eq!(app.session.tool_id(), "artboard", "selecting a row exposes its artboard properties");
         // The navigator moves it on; the panel follows.
         crate::menus::invoke(&mut app, "view.goToArtboard", json!({"index": "previous"}));
         assert_eq!(selected(&app, 2), 0, "and the panel follows the navigator");
+    }
+
+    /// Artboard deletion keys work immediately after a row click; the last-artboard guard
+    /// reports its restriction without clearing artwork or disturbing the selected boards.
+    #[test]
+    fn artboard_delete_keys_after_a_row_click_keep_artwork_and_support_undo() {
+        for key in [egui::Key::Backspace, egui::Key::Delete] {
+            let mut app = VectorcraftApp::new(Session::new(), Default::default());
+            app.run("file.new", json!({"width": 200, "height": 150})).unwrap();
+            let id = app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 20, "height": 20})).unwrap()["id"].as_u64().unwrap();
+            app.run("artboard.new", json!({"x": 400, "y": 0, "width": 200, "height": 150})).unwrap();
+            app.view_mut().unwrap().artboard = 0;
+            let before = app.session.doc().unwrap().doc.clone();
+            let ctx = egui::Context::default();
+            let frame = |app: &mut VectorcraftApp, events| {
+                let mut out = ctx.run_ui(egui::RawInput { events, ..Default::default() }, |ui| {
+                    show(app, ui);
+                    crate::shortcuts::handle(app, ui.ctx());
+                });
+                out.textures_delta.clear();
+                out.shapes
+            };
+            let at = frame(&mut app, vec![])
+                .iter()
+                .find_map(|c| match &c.shape {
+                    egui::Shape::Text(t) if t.galley.text() == "Artboard 2" => Some(t.pos + vec2(4.0, 4.0)),
+                    _ => None,
+                })
+                .unwrap();
+            let button =
+                |pressed| egui::Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
+            frame(&mut app, vec![egui::Event::PointerMoved(at), button(true)]);
+            frame(&mut app, vec![button(false)]);
+            let press = |pressed| egui::Event::Key { key, physical_key: None, pressed, repeat: false, modifiers: Default::default() };
+            frame(&mut app, vec![press(true)]);
+            frame(&mut app, vec![press(false)]);
+            assert_eq!(app.session.doc().unwrap().doc.artboards.len(), 1, "{key:?} deletes the clicked board");
+            assert_eq!(app.view().unwrap().artboard, 0, "the navigator follows keyboard deletion");
+            assert_eq!(app.session.doc().unwrap().doc.node(vectorcraft_doc::NodeId(id)), before.node(vectorcraft_doc::NodeId(id)));
+            let remaining = app.session.doc().unwrap().doc.clone();
+            frame(&mut app, vec![press(true)]);
+            frame(&mut app, vec![press(false)]);
+            assert_eq!(&app.session.doc().unwrap().doc, &remaining, "the last-artboard guard never clears art");
+            assert!(app.ui.status.contains("at least one artboard"), "{}", app.ui.status);
+            app.run("edit.undo", json!({})).unwrap();
+            assert_eq!(&app.session.doc().unwrap().doc, &before);
+            app.session.set_tool_option("selected", &json!([0, 1]));
+            frame(&mut app, vec![press(true)]);
+            frame(&mut app, vec![press(false)]);
+            assert_eq!(&app.session.doc().unwrap().doc, &before, "selecting all boards cannot clear artwork");
+            assert_eq!(app.session.tool_options()["selected"], json!([0, 1]), "rejected deletion preserves the board selection");
+        }
     }
 
     /// #1006: Select › All on Active Artboard selects the art of the artboard made active here,
@@ -356,7 +411,10 @@ mod tests {
         let ctx = egui::Context::default();
         let screen = Some(egui::Rect::from_min_size(egui::Pos2::ZERO, vec2(240.0, 400.0)));
         let frame = |app: &mut VectorcraftApp, time: f64, events: Vec<egui::Event>| {
-            let mut out = ctx.run_ui(egui::RawInput { events, time: Some(time), screen_rect: screen, ..Default::default() }, |ui| show(app, ui));
+            let mut out = ctx.run_ui(egui::RawInput { events, time: Some(time), screen_rect: screen, ..Default::default() }, |ui| {
+                show(app, ui);
+                crate::shortcuts::handle(app, ui.ctx());
+            });
             out.textures_delta.clear();
             out.shapes
         };
@@ -388,6 +446,10 @@ mod tests {
         // Its name: a rename.
         frame(&mut app, 2.0, events(name, 2));
         assert_eq!(pstate::<Option<usize>>(&ctx, "ab-edit"), Some(1));
+        frame(&mut app, 2.1, vec![]);
+        let key = |pressed| egui::Event::Key { key: egui::Key::Backspace, physical_key: None, pressed, repeat: false, modifiers: Default::default() };
+        frame(&mut app, 2.2, vec![key(true), key(false)]);
+        assert_eq!(app.session.doc().unwrap().doc.artboards.len(), 2, "Backspace edits the focused name without deleting its artboard");
         set_pstate::<Option<usize>>(&ctx, "ab-edit", None);
         frame(&mut app, 3.0, vec![]);
         // Artboard 1's Options button: the Artboard tool, editing Artboard 1.

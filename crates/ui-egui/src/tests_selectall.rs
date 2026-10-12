@@ -134,8 +134,8 @@ fn cmd_a_while_editing_type_selects_all_of_its_text() {
     let mut a = App::new();
     a.app.select_tool("type");
     let view = a.app.view_info();
-    for kind in [PointerKind::Down, PointerKind::Up] {
-        a.app.session.pointer(&PointerEvent::new(kind, 100.0, 200.0), view).unwrap();
+    for (kind, x, y) in [(PointerKind::Down, 100.0, 200.0), (PointerKind::Drag, 200.0, 260.0), (PointerKind::Up, 200.0, 260.0)] {
+        a.app.session.pointer(&PointerEvent::new(kind, x, y), view).unwrap();
     }
     a.frame(vec![Event::Text("abc".into())]);
     let text = a.app.session.active().unwrap().selection.objects.clone();

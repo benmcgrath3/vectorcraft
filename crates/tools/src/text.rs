@@ -2,7 +2,7 @@
 //!
 //! Type: click places point type, drag draws an area-type frame, clicking into existing text
 //! places the caret. Area Type / Type on a Path: click a path to turn it into a text frame or a
-//! baseline (`text.createInPath`). Point type placed by a click and left empty is discarded when
+//! baseline (`text.createInPath`). Explicit point type left empty is discarded when
 //! editing ends (`text.discardEmpty`); frames keep their shape. Where new type goes (the click, the
 //! frame's corners) snaps to Smart Guides ([`DrawSnap`]), hovering too.
 //!
@@ -291,10 +291,9 @@ impl TypeTool {
             }
         }
         let area = drag.map(|d| Rect::from_points(at, d)).filter(|r| r.width() > cx.tol(6.0) && r.height() > cx.tol(6.0));
-        let mut params = match area {
-            Some(r) => json!({"x": r.x0, "y": r.y0, "text": "", "area": {"width": r.width(), "height": r.height()}}),
-            None => json!({"x": at.x, "y": at.y, "text": ""}),
-        };
+        // New text needs a dragged frame; a bare click only edits existing text or a path.
+        let Some(area) = area else { return out };
+        let mut params = json!({"x": area.x0, "y": area.y0, "text": "", "area": {"width": area.width(), "height": area.height()}});
         params["vertical"] = json!(self.vertical);
         params["placeholder"] = json!(cx.placeholder_text);
         out.push(Action::Exec("text.create".into(), params));

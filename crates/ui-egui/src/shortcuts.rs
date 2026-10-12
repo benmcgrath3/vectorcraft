@@ -365,6 +365,7 @@ pub fn handle(app: &mut VectorcraftApp, ctx: &egui::Context) {
     ] {
         if ctx.input(|i| i.key_pressed(k)) && app.session.tool_claims_key(tk, view) && ctx.input_mut(|i| i.consume_key(m, k)) {
             let r = app.session.tool_key(tk, crate::canvas::mods(m, false), view);
+            crate::canvas::sync_active_artboard(app);
             crate::canvas::apply_requests(app, r);
             return;
         }
@@ -497,8 +498,12 @@ mod tests {
         app.session.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
         app.select_tool("type");
         let view = app.view_info();
-        for kind in [vectorcraft_tools::PointerKind::Down, vectorcraft_tools::PointerKind::Up] {
-            app.session.pointer(&vectorcraft_tools::PointerEvent::new(kind, 50.0, 50.0), view).unwrap();
+        for (kind, x, y) in [
+            (vectorcraft_tools::PointerKind::Down, 50.0, 50.0),
+            (vectorcraft_tools::PointerKind::Drag, 150.0, 110.0),
+            (vectorcraft_tools::PointerKind::Up, 150.0, 110.0),
+        ] {
+            app.session.pointer(&vectorcraft_tools::PointerEvent::new(kind, x, y), view).unwrap();
         }
         frame(&mut app, vec![egui::Event::Text("Bold".into())]);
         assert!(app.session.tool_wants_text());
@@ -585,8 +590,12 @@ mod tests {
         // The Type tool: a, Tab, b is one text.
         app.select_tool("type");
         let view = app.view_info();
-        for kind in [vectorcraft_tools::PointerKind::Down, vectorcraft_tools::PointerKind::Up] {
-            app.session.pointer(&vectorcraft_tools::PointerEvent::new(kind, 50.0, 50.0), view).unwrap();
+        for (kind, x, y) in [
+            (vectorcraft_tools::PointerKind::Down, 50.0, 50.0),
+            (vectorcraft_tools::PointerKind::Drag, 150.0, 110.0),
+            (vectorcraft_tools::PointerKind::Up, 150.0, 110.0),
+        ] {
+            app.session.pointer(&vectorcraft_tools::PointerEvent::new(kind, x, y), view).unwrap();
         }
         run(&mut app, vec![egui::Event::Text("a".into())]);
         run(&mut app, vec![press(Key::Tab)]);

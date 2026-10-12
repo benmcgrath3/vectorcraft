@@ -339,8 +339,7 @@ fn hebrew_typing_and_visual_arrows_keep_logical_text() {
     assert_eq!(t.plain_text(), "שלום");
 }
 
-/// Where new type goes snaps to Smart Guides (#506): a click beside a rect lines up with its
-/// centre, and hovering shows it first; an area's corners land on its anchors.
+/// Smart Guides still preview alignment, while only a dragged area's corners create text.
 #[test]
 fn new_type_snaps_to_smart_guides() {
     let (d, _) = crate::testutil::doc_with_rect();
@@ -351,7 +350,7 @@ fn new_type_snaps_to_smart_guides() {
     assert!(tool.overlays(&c).iter().any(|o| matches!(o, Overlay::Label { text, p, .. } if text == "align" && *p == Point::new(150.0, 330.0))));
     tool.pointer(&c, &PointerEvent::new(PointerKind::Down, 151.0, 330.0));
     let acts = tool.pointer(&c, &PointerEvent::new(PointerKind::Up, 151.0, 330.0));
-    assert!(acts.iter().any(|a| matches!(a, Action::Exec(cmd, v) if cmd == "text.create" && v["x"] == 150.0 && v["y"] == 330.0)), "{acts:?}");
+    assert!(acts.is_empty(), "a click on a Smart Guide must not create text: {acts:?}");
     let mut tool = TypeTool::new("type");
     tool.pointer(&c, &PointerEvent::new(PointerKind::Down, 102.0, 98.0));
     tool.pointer(&c, &PointerEvent::new(PointerKind::Drag, 199.0, 202.0));

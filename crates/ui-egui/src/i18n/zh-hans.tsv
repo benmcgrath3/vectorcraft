@@ -3124,7 +3124,6 @@
 	 to finish	以完成
 	 to add smooth points  |  	以添加平滑点  |  
 	 to toggle corner  |  	以切换角点  |  
-	 to create point type  |  	以创建点文字  |  
 	 to create area type  |  	以创建区域文字  |  
 	 to exit editing	以退出编辑
 	 to draw  |  	以绘制  |  
@@ -3755,3 +3754,14 @@ lighting	Light	光源
 	Move Guide to Layer	将参考线移至图层
 	Linux Display Server	Linux 显示服务器
 	X11 (XWayland)	X11 (XWayland)
+
+	Attach to Active Artboard	附加到活动画板
+	Detach from Artboard	从画板分离
+
+# Selection colors in Properties
+	Selection Colors	选区颜色
+	Edit selection color	编辑选区颜色
+	Color uses in the selection	选区内的颜色使用次数
+	Invalid hex color	无效的十六进制颜色
+@msg	bad selection color key {v}	所选颜色键无效 {v}
+@msg	the color is not used in the selection	所选对象未使用此颜色

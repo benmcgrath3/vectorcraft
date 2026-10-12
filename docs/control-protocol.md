@@ -106,6 +106,14 @@ fill or stroke (fields as in `swatchOptions` plus `group`; a gradient or pattern
 
 The Color Picker is a dialog too: `engine.execute {command: "ui.colorPicker", params: {stroke?, color?}}` opens it for the fill (or stroke) proxy; `ui.dialog.set {field: "hex", value: "00FF00"}` (or `color`, `channel`, `webOnly`, `swatches`) then `ui.dialog.confirm` applies the colour through `paint.setFill` / `paint.setStroke`.
 
+Properties › Selection Colors lists the colours used by selected objects and their descendants. Each
+row's hex field replaces just that colour through `recolor.apply`. For the row's Color Picker, use
+`ui.colorPicker {replace: "rgb 0 0 0"}` with an exact key from `recolor.colors`; keys not present in the
+selection are refused. The replacement previews live, `ui.dialog.cancel` restores the art and
+`ui.dialog.confirm` keeps it as one Undo step. It reaches matching fills, strokes, text runs, gradient
+stops, freeform gradient points, mesh points and pattern tiles in the selection; image pixels stay
+unchanged. Colour models retain their identity, and shared patterns are copied for selected artwork.
+
 Graphic styles: `ui.graphicStyleOptions {name}` opens the `graphicStyleOptions` dialog (field `name`) for a style and
 `ui.dialog.confirm` renames it with `graphicStyle.rename` (a name another style has returns an error and keeps the
 dialog open); without `name` it names a new style made from the selection (`graphicStyle.new`).

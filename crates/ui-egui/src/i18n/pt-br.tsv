@@ -56,7 +56,6 @@
 	 to constrain proportions  |  	 para restringir proporções  |  
 	 to copy  |  	 para copiar  |  
 	 to create area type  |  	 para criar texto de área  |  
-	 to create point type  |  	 para criar texto de ponto  |  
 	 to draw  |  	 para desenhar  |  
 	 to exit editing	 para sair da edição
 	 to finish	 para terminar
@@ -3664,3 +3663,14 @@ axis	Both	Ambos
 @msg	invalid native panel set	conjunto de painéis nativos inválido
 @msg	missing panel layout	layout de painéis ausente
 @msg	unsupported native docking operation	operação de encaixe nativa não suportada
+
+	Attach to Active Artboard	Anexar à Mesa de Trabalho Ativa
+	Detach from Artboard	Desvincular da Mesa de Trabalho
+
+# Selection colors in Properties
+	Selection Colors	Cores da seleção
+	Edit selection color	Editar cor da seleção
+	Color uses in the selection	Usos da cor na seleção
+	Invalid hex color	Cor hexadecimal inválida
+@msg	bad selection color key {v}	chave de cor da seleção inválida {v}
+@msg	the color is not used in the selection	a cor não é usada na seleção

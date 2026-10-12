@@ -3,7 +3,7 @@
 //! their identity ([`ColorKey`]: model and exact values), so a CMYK colour stays CMYK and two
 //! colours that only look alike stay apart.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use serde_json::{Value, json};
 use vectorcraft_color::recolor::{ColorKey, Method, Preserve, Rng, RowMap, cluster};
@@ -81,7 +81,15 @@ fn used_colors(d: &Document, ids: &[NodeId]) -> Vec<Used> {
     };
     // The patterns used as fills or strokes: their tiles count once each.
     let mut patterns: Vec<&str> = vec![];
-    for n in ids.iter().filter_map(|id| d.node(*id)) {
+    // A selected group and a selected descendant still use each paint only once, as apply does.
+    let targets: HashSet<NodeId> = ids.iter().copied().collect();
+    let paths = d.index_paths(ids.iter().copied());
+    let mut seen = HashSet::new();
+    for n in ids.iter().filter_map(|id| {
+        let path = paths.get(id)?;
+        let ancestry = d.ancestry_at(path)?;
+        (seen.insert(*id) && ancestry.iter().all(|a| a == id || !targets.contains(a))).then(|| d.node_at(path)).flatten()
+    }) {
         node_colors(n, &mut count);
         n.walk(&mut |m| {
             let runs = match &m.kind {

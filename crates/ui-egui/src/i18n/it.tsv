@@ -3233,7 +3233,6 @@
 	 to finish	 per terminare
 	 to add smooth points  |  	 per aggiungere punti curvi  |  
 	 to toggle corner  |  	 per alternare punto d'angolo e punto curvo  |  
-	 to create point type  |  	 per creare testo per punti  |  
 	 to create area type  |  	 per creare testo in area  |  
 	 to exit editing	 per uscire dalla modifica
 	 to draw  |  	 per disegnare  |  
@@ -4157,3 +4156,14 @@ lighting	Light	Luce
 @msg	unsupported native docking operation	Operazione nativa di ancoraggio non supportata
 	Linux Display Server	Server di visualizzazione Linux
 	X11 (XWayland)	X11 (XWayland)
+
+	Attach to Active Artboard	Associa alla tavola da disegno attiva
+	Detach from Artboard	Dissocia dalla tavola da disegno
+
+# Selection colors in Properties
+	Selection Colors	Colori della selezione
+	Edit selection color	Modifica colore della selezione
+	Color uses in the selection	Utilizzi del colore nella selezione
+	Invalid hex color	Colore esadecimale non valido
+@msg	bad selection color key {v}	chiave del colore della selezione non valida {v}
+@msg	the color is not used in the selection	il colore non è usato nella selezione

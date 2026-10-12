@@ -115,8 +115,8 @@ fn type_tool_inserts_at_its_caret_and_deletes_the_graphic_whole() {
     s.execute("symbol.setCurrent", &json!({"name": "Mana"})).unwrap();
     let v = ViewInfo::default();
     s.select_tool("type", v).unwrap();
-    for k in [PointerKind::Down, PointerKind::Up] {
-        s.pointer(&PointerEvent::new(k, 50.0, 300.0), v).unwrap();
+    for (k, x, y) in [(PointerKind::Down, 50.0, 300.0), (PointerKind::Drag, 350.0, 380.0), (PointerKind::Up, 350.0, 380.0)] {
+        s.pointer(&PointerEvent::new(k, x, y), v).unwrap();
     }
     let id = s.doc().unwrap().selection.objects[0];
     s.tool_text("Pay ", v).unwrap();

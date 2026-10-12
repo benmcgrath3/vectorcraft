@@ -283,10 +283,15 @@ fn artboard_tool_moves_with_art_creates_and_deletes() {
     assert!(s.tool_claims_key(ToolKey::Delete, ViewInfo::default()));
     s.tool_key(ToolKey::Delete, Mods::default(), ViewInfo::default()).unwrap();
     assert_eq!(s.doc().unwrap().doc.artboards.len(), 1);
-    // The last artboard can't be deleted, so Delete stays the shortcut's.
-    assert!(!s.tool_claims_key(ToolKey::Delete, ViewInfo::default()));
-    s.tool_key(ToolKey::Delete, Mods::default(), ViewInfo::default()).unwrap();
-    assert_eq!(s.doc().unwrap().doc.artboards.len(), 1);
+    // The last artboard can't be deleted; both keys stay the tool's and report the command's
+    // restriction instead of falling through to clearing artwork.
+    let before = s.doc().unwrap().doc.clone();
+    for key in [ToolKey::Delete, ToolKey::Backspace] {
+        assert!(s.tool_claims_key(key, ViewInfo::default()));
+        let error = s.tool_key(key, Mods::default(), ViewInfo::default()).unwrap_err();
+        assert!(error.to_string().contains("at least one artboard"));
+        assert_eq!(&s.doc().unwrap().doc, &before);
+    }
 }
 
 #[test]

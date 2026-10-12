@@ -389,7 +389,7 @@ pub const UI_COMMANDS: &[(&str, &str, &str, &str)] = &[
         "ui.colorPicker",
         "Color Picker…",
         "",
-        "{stroke?: bool (default: the active proxy), color?: \"#rrggbb\"|[r,g,b]|{c,m,y,k}|{gray} (default: the proxy's colour)} open the Color Picker (fields: hex or color, channel, webOnly, swatches); OK runs paint.setFill / paint.setStroke",
+        "{stroke?: bool (default: the active proxy), color?: \"#rrggbb\"|[r,g,b]|{c,m,y,k}|{gray} (default: the proxy's colour), replace?: exact colour key from recolor.colors} open the Color Picker (fields: hex or color, channel, webOnly, swatches); previews live, Cancel restores, OK records one undo step through paint.setFill / paint.setStroke, or recolor.apply with replace (all matching fills, strokes, text, gradient stops, meshes and pattern tiles inside the selection; image pixels unchanged)",
     ),
     (
         "ui.brushOptions",
@@ -2159,6 +2159,8 @@ pub fn menu_tree_named(english_names: bool) -> Vec<(&'static str, Vec<Item>)> {
                 Sep,
                 c("Group", "object.group"),
                 c("Ungroup", "object.ungroup"),
+                c("Attach to Active Artboard", "artboard.attach"),
+                cp("Detach from Artboard", "artboard.attach", json!({"artboard": null})),
                 sub(
                     "Lock",
                     vec![c("Selection", "object.lock"), c("All Artwork Above", "object.lock.above"), c("Other Layers", "object.lock.otherLayers")],

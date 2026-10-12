@@ -84,6 +84,203 @@ fn renamed(v: &Value) -> Vec<(String, String, String)> {
 // ---------- M4.22: resources ----------
 
 #[test]
+fn artboard_attachment_paste_outside_moves_with_board_after_save_and_undo() {
+    let mut s = session();
+    let source = rect(&mut s, 10.0, 10.0, 40.0, 40.0);
+    copy(&mut s, &[source]);
+    // Entirely on the pasteboard: the active board is explicit, not inferred from containment.
+    let pasted = ids_of(&s.execute("edit.paste", &json!({"artboard": 0, "center": [450, 350]})).unwrap())[0];
+    let original = node(&s, pasted).geometric_bounds().unwrap();
+    assert_eq!(node(&s, pasted).artboard, Some(doc(&s).artboards[0].id));
+    let loaded = vectorcraft_format::load(&vectorcraft_format::save(doc(&s), false)).unwrap();
+    let mut s = Session::new();
+    s.add_document(loaded, None);
+    let before = doc(&s).clone();
+    let moved = s.execute("artboard.move", &json!({"index": 0, "dx": 50, "dy": 30, "moveArt": true})).unwrap();
+    assert!(moved["moved"].as_array().unwrap().contains(&json!(pasted.0)));
+    assert_eq!(node(&s, pasted).geometric_bounds().unwrap(), original + vectorcraft_geom::Vec2::new(50.0, 30.0));
+    s.execute("edit.undo", &json!({})).unwrap();
+    assert_eq!(doc(&s), &before);
+    s.execute("edit.redo", &json!({})).unwrap();
+    assert_eq!(node(&s, pasted).geometric_bounds().unwrap(), original + vectorcraft_geom::Vec2::new(50.0, 30.0));
+    // The control fields use the same association, and Move Artwork off still leaves art alone.
+    s.execute("artboard.setProps", &json!({"index": 0, "x": 100, "moveArt": true})).unwrap();
+    assert_eq!(node(&s, pasted).geometric_bounds().unwrap(), original + vectorcraft_geom::Vec2::new(100.0, 30.0));
+    s.execute("artboard.move", &json!({"index": 0, "dx": 100, "dy": 0, "moveArt": false})).unwrap();
+    assert_eq!(node(&s, pasted).geometric_bounds().unwrap(), original + vectorcraft_geom::Vec2::new(100.0, 30.0));
+}
+
+#[test]
+fn artboard_attachment_cross_document_paste_replaces_source_board_and_ignores_other_board() {
+    let mut s = session();
+    let source = rect(&mut s, 10.0, 10.0, 40.0, 40.0);
+    s.execute("artboard.new", &json!({"x": 500, "y": 0, "width": 400, "height": 300})).unwrap();
+    s.execute("artboard.attach", &json!({"artboard": 1})).unwrap();
+    copy(&mut s, &[source]);
+    new_doc(&mut s);
+    s.execute("artboard.new", &json!({"x": 500, "y": 0, "width": 400, "height": 300})).unwrap();
+    // Physically inside board 1, but pasted onto active board 0; the source had board 1's id.
+    let pasted = ids_of(&s.execute("edit.paste", &json!({"artboard": 0, "center": [550, 100]})).unwrap())[0];
+    let original = node(&s, pasted).geometric_bounds().unwrap();
+    assert_eq!(node(&s, pasted).artboard, Some(doc(&s).artboards[0].id));
+    let moved = s.execute("artboard.move", &json!({"index": 1, "dx": 20, "moveArt": true})).unwrap();
+    assert_eq!(moved["moved"], json!([]));
+    assert_eq!(node(&s, pasted).geometric_bounds().unwrap(), original);
+    s.execute("artboard.move", &json!({"index": 0, "dx": 30, "moveArt": true})).unwrap();
+    assert_eq!(node(&s, pasted).geometric_bounds().unwrap(), original + vectorcraft_geom::Vec2::new(30.0, 0.0));
+}
+
+#[test]
+fn artboard_attachment_duplicate_and_artboard_paste_remap_ownership() {
+    let mut s = session();
+    rect(&mut s, 450.0, 350.0, 40.0, 40.0);
+    s.execute("artboard.attach", &json!({"artboard": 0})).unwrap();
+    let duplicated = s.execute("artboard.duplicate", &json!({"index": 0})).unwrap();
+    let copy = ids_of(&duplicated)[0];
+    let index = duplicated["index"].as_u64().unwrap() as usize;
+    assert_eq!(node(&s, copy).artboard, Some(doc(&s).artboards[index].id));
+    let bounds = node(&s, copy).geometric_bounds().unwrap();
+    s.execute("artboard.move", &json!({"index": 0, "dx": 20, "moveArt": true})).unwrap();
+    assert_eq!(node(&s, copy).geometric_bounds().unwrap(), bounds, "moving the original never takes its duplicate");
+    s.execute("artboard.copy", &json!({"index": index})).unwrap();
+    new_doc(&mut s);
+    let pasted = s.execute("edit.paste", &json!({})).unwrap();
+    let art = ids_of(&pasted)[0];
+    let index = pasted["artboard"].as_u64().unwrap() as usize;
+    assert_eq!(node(&s, art).artboard, Some(doc(&s).artboards[index].id));
+    let bounds = node(&s, art).geometric_bounds().unwrap();
+    s.execute("artboard.move", &json!({"index": index, "dy": 20, "moveArt": true})).unwrap();
+    assert_eq!(node(&s, art).geometric_bounds().unwrap(), bounds + vectorcraft_geom::Vec2::new(0.0, 20.0));
+}
+
+#[test]
+fn artboard_attachment_all_artboards_reorder_and_delete_keep_identity() {
+    let mut s = session();
+    let source = rect(&mut s, 450.0, 350.0, 40.0, 40.0);
+    copy(&mut s, &[source]);
+    s.execute("artboard.new", &json!({"x": 500, "y": 0, "width": 400, "height": 300})).unwrap();
+    let pasted = ids_of(&s.execute("edit.pasteOnAllArtboards", &json!({})).unwrap());
+    for (i, id) in pasted.iter().enumerate() {
+        assert_eq!(node(&s, *id).artboard, Some(doc(&s).artboards[i].id));
+    }
+    let owner = node(&s, pasted[1]).artboard;
+    s.execute("artboard.reorder", &json!({"index": 1, "to": 0})).unwrap();
+    assert_eq!(node(&s, pasted[1]).artboard, owner);
+    let before_delete = doc(&s).clone();
+    s.execute("artboard.delete", &json!({"index": 0})).unwrap();
+    assert_eq!(node(&s, pasted[1]).artboard, None);
+    s.execute("edit.undo", &json!({})).unwrap();
+    assert_eq!(doc(&s), &before_delete);
+}
+
+#[test]
+fn artboard_attachment_existing_art_locked_art_and_groups() {
+    let mut s = session();
+    let a = rect(&mut s, 450.0, 350.0, 40.0, 40.0);
+    let b = rect(&mut s, 500.0, 350.0, 40.0, 40.0);
+    sel(&mut s, &[a, b]);
+    s.execute("artboard.attach", &json!({"artboard": 0})).unwrap();
+    let group = id_of(&s.execute("object.group", &json!({})).unwrap());
+    assert_eq!(node(&s, group).artboard, Some(doc(&s).artboards[0].id));
+    let before = node(&s, a).geometric_bounds().unwrap();
+    s.execute("artboard.move", &json!({"index": 0, "dx": 20, "moveArt": true})).unwrap();
+    assert_eq!(node(&s, a).geometric_bounds().unwrap(), before + vectorcraft_geom::Vec2::new(20.0, 0.0));
+    s.execute("object.ungroup", &json!({})).unwrap();
+    assert_eq!(node(&s, a).artboard, Some(doc(&s).artboards[0].id));
+    sel(&mut s, &[a]);
+    s.execute("object.lock", &json!({})).unwrap();
+    let before = node(&s, a).geometric_bounds().unwrap();
+    s.execute("artboard.move", &json!({"index": 0, "dx": 20, "moveArt": true})).unwrap();
+    assert_eq!(node(&s, a).geometric_bounds().unwrap(), before);
+    s.prefs.move_locked_with_artboard = true;
+    s.execute("artboard.move", &json!({"index": 0, "dx": 20, "moveArt": true})).unwrap();
+    assert_eq!(node(&s, a).geometric_bounds().unwrap(), before + vectorcraft_geom::Vec2::new(20.0, 0.0));
+    sel(&mut s, &[b]);
+    s.execute("artboard.attach", &json!({"artboard": null})).unwrap();
+    assert_eq!(node(&s, b).artboard, None);
+    let before = node(&s, b).geometric_bounds().unwrap();
+    s.execute("artboard.move", &json!({"index": 0, "dx": 20, "moveArt": true})).unwrap();
+    assert_eq!(node(&s, b).geometric_bounds().unwrap(), before);
+}
+
+#[test]
+fn artboard_attachment_rearrange_moves_outside_art_once_and_keeps_legacy_overlap_behavior() {
+    let mut s = session();
+    s.execute("artboard.new", &json!({"x": 500, "y": 0, "width": 400, "height": 300})).unwrap();
+    let attached = rect(&mut s, 450.0, 350.0, 40.0, 40.0);
+    s.execute("artboard.attach", &json!({"artboard": 1})).unwrap();
+    let legacy = rect(&mut s, 850.0, 50.0, 80.0, 40.0); // Centre inside, edge outside board 1.
+    let grouped_legacy = rect(&mut s, 550.0, 50.0, 40.0, 40.0);
+    sel(&mut s, &[attached, grouped_legacy]);
+    s.execute("object.group", &json!({})).unwrap();
+    s.execute("artboard.rearrange", &json!({"layout": "column", "spacing": 20, "moveArtwork": true})).unwrap();
+    assert_eq!(node(&s, attached).geometric_bounds().unwrap(), Rect::new(-50.0, 670.0, -10.0, 710.0));
+    assert_eq!(node(&s, legacy).geometric_bounds().unwrap(), Rect::new(350.0, 370.0, 430.0, 410.0));
+    assert_eq!(node(&s, grouped_legacy).geometric_bounds().unwrap(), Rect::new(50.0, 370.0, 90.0, 410.0));
+    // Overlapping boards: legacy roots still choose the first board containing their centre,
+    // even when only a later board contains their entire bounds.
+    let mut s = session();
+    s.execute("artboard.new", &json!({"x": 200, "y": 0, "width": 400, "height": 300})).unwrap();
+    let legacy = rect(&mut s, 330.0, 50.0, 100.0, 40.0);
+    s.execute("artboard.rearrange", &json!({"layout": "column", "spacing": 20, "moveArtwork": true})).unwrap();
+    assert_eq!(node(&s, legacy).geometric_bounds().unwrap(), Rect::new(330.0, 50.0, 430.0, 90.0));
+}
+
+#[test]
+fn artboard_attachment_invalid_targets_do_not_edit_and_old_nodes_load_unassigned() {
+    let mut s = session();
+    let original = rect(&mut s, 450.0, 350.0, 40.0, 40.0);
+    copy(&mut s, &[original]);
+    let old_node = serde_json::to_value(node(&s, original)).unwrap();
+    assert!(old_node.get("artboard").is_none());
+    assert_eq!(serde_json::from_value::<Node>(old_node).unwrap().artboard, None);
+    let before = doc(&s).clone();
+    for artboard in [json!(99), json!(-1), json!("bad")] {
+        assert!(s.execute("artboard.attach", &json!({"artboard": artboard})).is_err());
+        assert_eq!(doc(&s), &before);
+    }
+    s.execute("artboard.attach", &json!({"artboard": null})).unwrap();
+    assert_eq!(s.journal_for_action(0).last().unwrap().1["artboard"], Value::Null);
+    assert!(s.journal_for_action(0).last().unwrap().1.get("artboard").is_some(), "an action must keep explicit detach");
+}
+
+#[test]
+fn artboard_attachment_changing_one_group_child_keeps_siblings_on_their_board() {
+    let mut s = session();
+    s.execute("artboard.new", &json!({"x": 500, "y": 0, "width": 400, "height": 300})).unwrap();
+    let a = rect(&mut s, 450.0, 350.0, 40.0, 40.0);
+    let b = rect(&mut s, 500.0, 350.0, 40.0, 40.0);
+    sel(&mut s, &[a, b]);
+    let group = id_of(&s.execute("object.group", &json!({})).unwrap());
+    s.execute("artboard.attach", &json!({"artboard": 0})).unwrap();
+    sel(&mut s, &[a]);
+    s.execute("artboard.attach", &json!({"artboard": 1})).unwrap();
+    assert_eq!(node(&s, group).artboard, None);
+    let before_a = node(&s, a).geometric_bounds().unwrap();
+    let before_b = node(&s, b).geometric_bounds().unwrap();
+    s.execute("artboard.move", &json!({"indices": [0, 1], "dx": 20, "dy": 10, "moveArt": true})).unwrap();
+    assert_eq!(node(&s, a).geometric_bounds().unwrap(), before_a + vectorcraft_geom::Vec2::new(20.0, 10.0));
+    assert_eq!(node(&s, b).geometric_bounds().unwrap(), before_b + vectorcraft_geom::Vec2::new(20.0, 10.0));
+    s.execute("artboard.attach", &json!({"artboard": null})).unwrap();
+    let detached = node(&s, a).geometric_bounds().unwrap();
+    s.execute("artboard.move", &json!({"indices": [0, 1], "dx": 20, "moveArt": true})).unwrap();
+    assert_eq!(node(&s, a).geometric_bounds().unwrap(), detached);
+}
+
+#[test]
+fn artboard_attachment_relative_paste_uses_source_owner_instead_of_its_location() {
+    let mut s = session();
+    s.execute("artboard.new", &json!({"x": 500, "y": 0, "width": 400, "height": 300})).unwrap();
+    let source = rect(&mut s, 550.0, 10.0, 40.0, 40.0);
+    s.execute("artboard.attach", &json!({"artboard": 0})).unwrap();
+    copy(&mut s, &[source]);
+    assert_eq!(s.clipboard.source_artboard, Some(doc(&s).artboards[0].rect));
+    let pasted = ids_of(&s.execute("edit.pasteInPlace", &json!({"artboard": 1})).unwrap())[0];
+    assert_eq!(node(&s, pasted).geometric_bounds().unwrap(), Rect::new(1050.0, 10.0, 1090.0, 50.0));
+    assert_eq!(node(&s, pasted).artboard, Some(doc(&s).artboards[1].id));
+}
+
+#[test]
 fn an_image_symbol_and_pattern_rect_pasted_into_a_new_document_render_the_same() {
     let mut s = session();
     // Pattern "Dots" painting a rectangle.

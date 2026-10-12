@@ -87,6 +87,58 @@ fn count(app: &VectorcraftApp) -> usize {
     app.session.active().unwrap().doc.layers[0].children().unwrap().len()
 }
 
+#[test]
+fn external_text_pastes_into_the_edited_range_from_menu_and_keyboard() {
+    use egui::{Event, Key, Modifiers};
+    use vectorcraft_doc::NodeId;
+    use vectorcraft_tools::Action;
+
+    for mode in ["edit.paste", "edit.pasteWithoutFormatting", "key", "event"] {
+        let (mut app, board) = app();
+        let other = run(&mut app, "shape.rectangle", json!({"x": 300, "y": 200, "width": 20, "height": 20}))["id"].as_u64().unwrap();
+        let id = run(&mut app, "text.create", json!({"x": 20, "y": 50, "text": "Before old after", "size": 24}))["id"].as_u64().unwrap();
+        let before = app.session.active().unwrap().doc.clone();
+        let plain = |app: &VectorcraftApp| match &app.session.active().unwrap().doc.node(NodeId(id)).unwrap().kind {
+            NodeKind::Text(t) => t.plain_text(),
+            _ => panic!("text"),
+        };
+        app.select_tool("type");
+        app.session.apply_actions(vec![Action::Notify("text.editNew".into())]).unwrap();
+        app.session.set_tool_option("select", &json!({"start": 7, "end": 10}));
+        // Populate the old internal text cache, then copy different text in another app.
+        run(&mut app, "edit.copy", json!({}));
+        copy_elsewhere(&board, vec![(TEXT, "Café\r\nsecond line\t✓".as_bytes().to_vec())]);
+        let ctx = egui::Context::default();
+        let events = match mode {
+            "key" => vec![Event::Key { key: Key::V, physical_key: None, pressed: true, repeat: false, modifiers: Modifiers::COMMAND }],
+            "event" => vec![Event::Paste("Café\r\nsecond line\t✓".into())],
+            _ => {
+                menus::invoke(&mut app, mode, json!({}));
+                vec![]
+            }
+        };
+        ctx.run_ui(egui::RawInput { events, ..Default::default() }, |ui| crate::shortcuts::handle(&mut app, ui.ctx())).textures_delta.clear();
+        assert_eq!(plain(&app), "Before Café\nsecond line\t✓ after", "{mode}");
+        let doc = &app.session.active().unwrap().doc;
+        assert_eq!(doc.layers[0].children().unwrap().len(), 2, "no extra text object");
+        assert_eq!(doc.node(NodeId(other)), before.node(NodeId(other)), "other art unchanged");
+        let NodeKind::Text(t) = &doc.node(NodeId(id)).unwrap().kind else { panic!("text") };
+        assert_eq!(t.first_style().size, 24.0);
+        app.select_tool("selection");
+        run(&mut app, "edit.undo", json!({}));
+        assert_eq!(&app.session.active().unwrap().doc, &before, "{mode}: undo");
+        run(&mut app, "edit.redo", json!({}));
+        assert_eq!(plain(&app), "Before Café\nsecond line\t✓ after", "{mode}: redo");
+        app.select_tool("type");
+        app.session.apply_actions(vec![Action::Notify("text.editNew".into())]).unwrap();
+        run(&mut app, "edit.copy", json!({}));
+        let after = app.session.active().unwrap().doc.clone();
+        copy_elsewhere(&board, vec![]);
+        menus::invoke(&mut app, "edit.paste", json!({}));
+        assert_eq!(&app.session.active().unwrap().doc, &after, "empty system clipboard must not paste a stale copy");
+    }
+}
+
 /// A 4 × 2 px blue PNG.
 pub(super) fn blue_png() -> Vec<u8> {
     let img = image::RgbaImage::from_pixel(4, 2, image::Rgba([0, 0, 255, 255]));

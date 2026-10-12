@@ -3132,7 +3132,6 @@ effect	Points	Punkte
 	 to finish	 schließt ab
 	 to add smooth points  |  	 fügt Übergangspunkte hinzu  |  
 	 to toggle corner  |  	 wechselt zwischen Ecke und Kurve  |  
-	 to create point type  |  	 erstellt Punkttext  |  
 	 to create area type  |  	 erstellt Flächentext  |  
 	 to exit editing	 beendet die Bearbeitung
 	 to draw  |  	 zeichnet  |  
@@ -4111,3 +4110,14 @@ theme	Appearance	Erscheinungsbild
 @msg	unsupported native docking operation	Nicht unterstützte native Docking-Operation
 	Linux Display Server	Linux-Anzeigeserver
 	X11 (XWayland)	X11 (XWayland)
+
+	Attach to Active Artboard	An aktive Zeichenfläche binden
+	Detach from Artboard	Von Zeichenfläche lösen
+
+# Selection colors in Properties
+	Selection Colors	Auswahlfarben
+	Edit selection color	Auswahlfarbe bearbeiten
+	Color uses in the selection	Verwendungen der Farbe in der Auswahl
+	Invalid hex color	Ungültige Hex-Farbe
+@msg	bad selection color key {v}	ungültiger Farbschlüssel der Auswahl {v}
+@msg	the color is not used in the selection	die Farbe wird in der Auswahl nicht verwendet

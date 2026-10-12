@@ -3217,7 +3217,6 @@
 	 to finish	可結束
 	 to add smooth points  |  	可新增平滑錨點  |  
 	 to toggle corner  |  	可切換尖角  |  
-	 to create point type  |  	可建立點狀文字  |  
 	 to create area type  |  	可建立區域文字  |  
 	 to exit editing	可結束編輯
 	 to draw  |  	可繪製  |  
@@ -3536,3 +3535,14 @@ lighting	Light	光源
 	Move Guide to Layer	將參考線移至圖層
 	Linux Display Server	Linux 顯示伺服器
 	X11 (XWayland)	X11 (XWayland)
+
+	Attach to Active Artboard	附加至作用中工作區域
+	Detach from Artboard	從工作區域分離
+
+# Selection colors in Properties
+	Selection Colors	選取範圍色彩
+	Edit selection color	編輯選取範圍色彩
+	Color uses in the selection	選取範圍內的色彩使用次數
+	Invalid hex color	無效的十六進位色彩
+@msg	bad selection color key {v}	所選顏色鍵無效 {v}
+@msg	the color is not used in the selection	所選物件未使用此顏色

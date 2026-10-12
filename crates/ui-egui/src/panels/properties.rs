@@ -5,7 +5,7 @@ use serde_json::json;
 use vectorcraft_doc::{LiveShape, NodeKind, Unit};
 use vectorcraft_engine::cmd::newdoc;
 
-use super::{corner_radius_row, first_selected, pstate, set_pstate};
+use super::{corner_radius_row, first_selected};
 use crate::theme::Tokens;
 use crate::widgets::{self, dim_label, divider, section_header};
 use crate::{VectorcraftApp, icons};
@@ -61,6 +61,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
         divider(ui);
     }
     appearance_section(app, ui);
+    super::selection_colors::show(app, ui);
     divider(ui);
     section_header(ui, tl!("Align"));
     ui.horizontal(|ui| {
@@ -180,17 +181,7 @@ fn trace_section(app: &mut VectorcraftApp, ui: &mut Ui, preset: &str, view: vect
 /// Whether the selection uses more than one colour (`recolor.colors`), which offers the Recolor
 /// quick action; cached per document revision.
 fn multi_color(app: &mut VectorcraftApp, ctx: &egui::Context) -> bool {
-    let Some(st) = app.session.active() else { return false };
-    let key = (st.uid, st.revision);
-    match pstate::<Option<((u64, u64), bool)>>(ctx, "props-multi-color") {
-        Some((k, multi)) if k == key => multi,
-        _ => {
-            let r = app.session.execute("recolor.colors", &json!({})).unwrap_or_default();
-            let multi = r["colors"].as_array().is_some_and(|c| c.len() > 1);
-            set_pstate(ctx, "props-multi-color", Some((key, multi)));
-            multi
-        }
-    }
+    super::selection_colors::colors(app, ctx).len() > 1
 }
 
 /// Edit Artboards (the Artboard tool): the active artboard's name, position and size, its preset and
@@ -705,6 +696,56 @@ mod tests {
         assert!(has(&texts, "Scale Strokes & Effects"), "still open after a toggle");
         click(&mut app, &ctx, &texts, "Scale Strokes & Effects");
         assert_eq!(app.session.prefs.scale_strokes, !ss);
+    }
+
+    /// Selecting an Artboards row exposes the board's dimensions even with artwork selected;
+    /// the actual W/H fields edit that board, independently, with undo.
+    #[test]
+    fn selecting_an_artboard_row_shows_and_edits_its_width_and_height() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.run("file.new", json!({"width": 200, "height": 100, "units": "Points"})).unwrap();
+        let id = app.run("shape.rectangle", json!({"x": 10, "y": 20, "width": 30, "height": 40})).unwrap()["id"].as_u64().unwrap();
+        app.run("artboard.new", json!({"x": 500, "y": 0, "width": 360, "height": 240})).unwrap();
+        app.view_mut().unwrap().artboard = 0;
+        let before = app.session.doc().unwrap().doc.clone();
+        let ctx = egui::Context::default();
+        panel_frame(&mut app, &ctx, vec![], super::super::artboards::show);
+        let rows = panel_frame(&mut app, &ctx, vec![], super::super::artboards::show);
+        let at = rows.iter().find(|(t, _)| t == "Artboard 2").unwrap().1.center();
+        let press = |at, pressed| Event::PointerButton { pos: at, button: PointerButton::Primary, pressed, modifiers: Default::default() };
+        panel_frame(&mut app, &ctx, vec![Event::PointerMoved(at), press(at, true)], super::super::artboards::show);
+        panel_frame(&mut app, &ctx, vec![press(at, false)], super::super::artboards::show);
+        assert_eq!(app.session.tool_id(), "artboard");
+        assert_eq!(app.view().unwrap().artboard, 1);
+        frame(&mut app, &ctx, vec![]);
+        let texts = frame(&mut app, &ctx, vec![]);
+        for label in ["Artboard 2", "W:", "H:", "360 pt", "240 pt"] {
+            assert!(texts.iter().any(|(t, _)| t == label), "missing {label}: {texts:?}");
+        }
+        for label in ["W:", "H:"] {
+            let texts = frame(&mut app, &ctx, vec![]);
+            let label = texts.iter().find(|(t, _)| t == label).unwrap().1;
+            let at = egui::pos2(label.right() + 40.0, label.center().y);
+            frame(&mut app, &ctx, vec![Event::PointerMoved(at), press(at, true)]);
+            frame(&mut app, &ctx, vec![press(at, false)]);
+            frame(
+                &mut app,
+                &ctx,
+                vec![Event::Key { key: egui::Key::ArrowUp, physical_key: None, pressed: true, repeat: false, modifiers: Default::default() }],
+            );
+            frame(
+                &mut app,
+                &ctx,
+                vec![Event::Key { key: egui::Key::ArrowUp, physical_key: None, pressed: false, repeat: false, modifiers: Default::default() }],
+            );
+        }
+        let d = &app.session.doc().unwrap().doc;
+        assert_eq!((d.artboards[1].rect.width(), d.artboards[1].rect.height()), (361.0, 241.0));
+        assert_eq!(d.artboards[0], before.artboards[0]);
+        assert_eq!(d.node(vectorcraft_doc::NodeId(id)), before.node(vectorcraft_doc::NodeId(id)));
+        app.run("edit.undo", json!({})).unwrap();
+        app.run("edit.undo", json!({})).unwrap();
+        assert_eq!(&app.session.doc().unwrap().doc, &before);
     }
 
     /// Both panels forward the Move Artwork toggle when their actual X field is edited.

@@ -75,6 +75,51 @@ fn five_colours_reduce_to_two() {
 }
 
 #[test]
+fn selection_palette_counts_selected_groups_and_descendants_once() {
+    let mut s = session();
+    let a = rect(&mut s, json!("#000000"));
+    let b = rect(&mut s, json!("#000000"));
+    let outside = rect(&mut s, json!("#000000"));
+    run(&mut s, "select.set", json!({"ids": [a.0, b.0]}));
+    let g = run(&mut s, "object.group", json!({}))["id"].as_u64().unwrap();
+    // Some API or Layers selections can name both the parent and a descendant.
+    run(&mut s, "select.set", json!({"ids": [a.0, g, b.0]}));
+    let palette = run(&mut s, "recolor.colors", json!({}));
+    let black = palette["colors"].as_array().unwrap().iter().find(|c| c["key"] == "rgb 0 0 0").unwrap();
+    assert_eq!(black["count"], 2, "{palette}");
+    run(&mut s, "recolor.apply", json!({"map": [{"from": [black["key"]], "to": "#3366cc"}], "includeImages": false}));
+    assert_eq!(fill(&s, a).to_hex(), "#3366cc");
+    assert_eq!(fill(&s, b).to_hex(), "#3366cc");
+    assert_eq!(fill(&s, outside).to_hex(), "#000000");
+    run(&mut s, "edit.undo", json!({}));
+    assert_eq!(fill(&s, a).to_hex(), "#000000");
+}
+
+#[test]
+fn recoloring_freeform_gradients_updates_rendered_points_and_mirrored_stops() {
+    let mut s = session();
+    let id = rect(&mut s, json!("#000000"));
+    run(&mut s, "paint.editGradient", json!({"kind": "freeform", "stroke": false}));
+    run(&mut s, "paint.freeform.setPoint", json!({"index": 0, "color": "#000000", "stroke": false}));
+    let gradient = |s: &Session| match s.doc().unwrap().doc.node(id).unwrap().appearance.fill_paint() {
+        vectorcraft_color::Paint::Gradient(g) => *g,
+        p => panic!("{p:?}"),
+    };
+    let before = gradient(&s);
+    run(&mut s, "recolor.apply", json!({"map": {"rgb 0 0 0": "#3366cc"}, "includeImages": false}));
+    let after = gradient(&s);
+    let (old, new) = (before.freeform.as_ref().unwrap(), after.freeform.as_ref().unwrap());
+    for (old, new) in old.points.iter().zip(&new.points) {
+        assert_eq!(new.at, old.at);
+        assert_eq!(new.color.to_hex(), if old.color == Color::BLACK { "#3366cc".to_string() } else { old.color.to_hex() });
+    }
+    assert_eq!(after.gradient.stops.iter().map(|s| s.color).collect::<Vec<_>>(), new.points.iter().map(|p| p.color).collect::<Vec<_>>());
+    vectorcraft_testkit::invariants::check_native_roundtrip_exact(&s.doc().unwrap().doc).unwrap();
+    run(&mut s, "edit.undo", json!({}));
+    assert_eq!(gradient(&s), before);
+}
+
+#[test]
 fn preserve_flags_leave_neutrals_out() {
     let mut s = session();
     for c in [json!("#ffffff"), json!("#000000"), json!({"gray": 50}), json!("#ff0000")] {

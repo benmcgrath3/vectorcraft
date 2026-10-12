@@ -983,7 +983,6 @@ lighting	Light	Světlo
 	 to finish	 dokončí
 	 to add smooth points  |  	 přidává hladké body  |  
 	 to toggle corner  |  	 přepne roh  |  
-	 to create point type  |  	 vytvoří bodový text  |  
 	 to create area type  |  	 vytvoří text v oblasti  |  
 	 to exit editing	 ukončí úpravy
 	 to draw  |  	 kreslí  |  
@@ -4446,3 +4445,13 @@ effect	Regular	Pravidelný
 	24 bits/pixel	24 bitů na pixel
 	32 bits/pixel	32 bitů na pixel
 	DWG (use DXF)	DWG (použijte DXF)
+	Attach to Active Artboard	Připojit k aktivnímu kreslicímu plátnu
+	Detach from Artboard	Odpojit od kreslicího plátna
+
+# Selection colors in Properties
+	Selection Colors	Barvy výběru
+	Edit selection color	Upravit barvu výběru
+	Color uses in the selection	Použití barvy ve výběru
+	Invalid hex color	Neplatná hexadecimální barva
+@msg	bad selection color key {v}	neplatný klíč barvy výběru {v}
+@msg	the color is not used in the selection	barva není použita ve výběru

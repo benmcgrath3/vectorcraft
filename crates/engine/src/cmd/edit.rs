@@ -64,7 +64,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Paste",
             ["Edit"],
             Some("Cmd+V"),
-            "{center?: [x, y], dx?, dy?, swatchConflict?} paste centred on `center` (the app passes the view centre), else offset by dx/dy (default: the Paste Offset preference). Pasting brings the image blobs, symbols, patterns, global and spot swatches (with the tint swatches of the tints used), gradient swatches, graphic styles, character and paragraph styles and brushes the objects use; one of the same name that differs comes in renamed. swatchConflict, for a swatch whose name the document gives another colour (clipboard.conflicts): \"merge\" (default: the objects take the document's swatch) | \"add\" (the pasted swatch comes in renamed) | {name: \"merge\"|\"add\"}. With Paste Remembers Layers on (layer.pasteRemembersLayers), objects go back into the layers they came from (by name; made when missing). An artboard copied with artboard.copy comes with its art, right of the last artboard (the other paste commands but Paste on All Artboards: where it was), its art back in the layers it came from → {ids, artboard: the new artboard's index or null, added: resources added, merged: conflicts merged, renamed: [{kind, from, to}]}",
+            "{center?: [x, y], dx?, dy?, artboard?: index (active artboard; pasted art moves with it even outside its bounds), swatchConflict?} paste centred on `center` (the app passes the view centre), else offset by dx/dy (default: the Paste Offset preference). Pasting brings the image blobs, symbols, patterns, global and spot swatches (with the tint swatches of the tints used), gradient swatches, graphic styles, character and paragraph styles and brushes the objects use; one of the same name that differs comes in renamed. swatchConflict, for a swatch whose name the document gives another colour (clipboard.conflicts): \"merge\" (default: the objects take the document's swatch) | \"add\" (the pasted swatch comes in renamed) | {name: \"merge\"|\"add\"}. With Paste Remembers Layers on (layer.pasteRemembersLayers), objects go back into the layers they came from (by name; made when missing). An artboard copied with artboard.copy comes with its art, right of the last artboard (the other paste commands but Paste on All Artboards: where it was), its art back in the layers it came from → {ids, artboard: the new artboard's index or null, added: resources added, merged: conflicts merged, renamed: [{kind, from, to}]}",
             has_clipboard,
             |s, p| paste(s, p, PasteMode::Offset)
         ),
@@ -414,18 +414,25 @@ fn paste_clip(s: &mut Session, p: &Value, mode: PasteMode, clip: &Clipboard, cho
         }
         _ => None,
     };
-    let placements: Vec<Affine> = match (mode, board) {
-        (_, Some((_, dv))) => vec![Affine::translate(dv)],
+    // Preserve relative-paste compatibility: a missing/stale board index falls back to the
+    // original placement, and can infer an association from that location.
+    let target_board =
+        p.get("artboard").and_then(Value::as_u64).and_then(|i| usize::try_from(i).ok()).and_then(|i| st.doc.artboards.get(i)).map(|a| a.id);
+    let placements: Vec<(Affine, Option<u32>)> = match (mode, board) {
+        (_, Some((_, dv))) => vec![(Affine::translate(dv), None)],
         (PasteMode::Offset | PasteMode::Library, None) => vec![match point_param(p, "center") {
             Some(c) => clip.bounds().map_or(Affine::IDENTITY, |b| Affine::translate(c - b.center())),
             None => Affine::translate((f64_or(p, "dx", off), f64_or(p, "dy", off))),
-        }],
+        }]
+        .into_iter()
+        .map(|xf| (xf, target_board))
+        .collect(),
         (PasteMode::AllArtboards, None) => {
             let src = clip.source_artboard.or_else(|| st.doc.artboards.first().map(|a| a.rect)).map(|r| r.origin()).unwrap_or_default();
-            st.doc.artboards.iter().map(|a| Affine::translate(a.rect.origin() - src)).collect()
+            st.doc.artboards.iter().map(|a| (Affine::translate(a.rect.origin() - src), Some(a.id))).collect()
         }
         // In place, in front, in back: onto the active artboard when the UI names it.
-        _ => vec![onto_artboard(&st.doc, p, clip)],
+        _ => vec![(onto_artboard(&st.doc, p, clip), target_board)],
     };
     let (ids, imported, artboard) = s.edit(mode.label(), |d, sel| {
         let imported = clip.import_into(d, choices, same_doc);
@@ -434,7 +441,15 @@ fn paste_clip(s: &mut Session, p: &Value, mode: PasteMode, clip: &Clipboard, cho
         // Objects pasted into each parent so far (keeps their order in front and back pastes).
         let mut placed: BTreeMap<Option<NodeId>, usize> = BTreeMap::new();
         let mut new_ids = vec![];
-        for xf in placements {
+        for (xf, target_board) in placements {
+            // Board ids belong to a document: never keep one from the source clipboard. The
+            // active board supplied by the app wins, even when the view/pasted art is outside it.
+            // Headless pastes without a named board infer one from the pasted bounds' centre.
+            let owner = artboard
+                .and_then(|i| d.artboards.get(i))
+                .map(|a| a.id)
+                .or(target_board)
+                .or_else(|| clip.bounds().and_then(|b| d.artboard_at(xf * b.center())).and_then(|i| d.artboards.get(i)).map(|a| a.id));
             for (k, n) in clip.nodes.iter().enumerate() {
                 let mut c = d.reid(n);
                 imported.apply(&mut c);
@@ -457,7 +472,9 @@ fn paste_clip(s: &mut Session, p: &Value, mode: PasteMode, clip: &Clipboard, cho
                     }
                 };
                 *placed.entry(par).or_default() += 1;
-                new_ids.push(d.insert(par, idx, c)?);
+                let id = d.insert(par, idx, c)?;
+                d.attach_artboard(id, owner)?;
+                new_ids.push(id);
             }
         }
         sel.set(new_ids.iter().copied());

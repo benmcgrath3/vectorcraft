@@ -1,6 +1,6 @@
 # UI and interaction parity
 
-> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-12 · **Change:** minor (macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144) · **Target:** Adobe Illustrator 2026 (30.x)
+> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-12 · **Change:** minor (Properties Selection Colors: edit one used colour across selected artwork with live preview, Cancel and one-step Undo; scores and estimates unchanged; local artboard attachment, dimension editing, deletion-key and external-text paste fixes retained; macOS save sheets offer a Format menu, #866; Attributes fill-rule controls edit the compound when a member is selected, #1197; a marquee needs to touch a path, not just lie inside its fill, #1103; earlier: Live Corners round corners between curved sides, #1144) · **Target:** Adobe Illustrator 2026 (30.x)
 
 How VectorCraft's tools, handles, snapping and panels behave next to Illustrator's. A vector illustrator's
 trust is in the details: where a handle lands, what Shift and Alt do mid-drag, what a smart guide snaps to,
@@ -127,6 +127,9 @@ tools, never checked side by side) isn't captured row by row.
 | Space: Hand; Cmd+Space / Cmd+Alt+Space: zoom in/out; middle button pans | done | |
 | Cmd/Ctrl: last-used selection tool; Cmd+Alt: Group Selection inside Direct Selection | partial | |
 | Alt-drag duplicates (objects, artboards with their art) | done | |
+| Backspace/Delete removes selected artboards with undo and keeps artwork | done | Last/all-board guard reports the restriction; navigator follows deletion; rename fields retain Backspace |
+| Selecting an Artboards row shows editable dimensions in Properties and Transform | done | Enters artboard editing; real panel W/H edits, independent axes and undo tested |
+| Pasted artwork follows its active artboard beyond its bounds (VectorCraft extension) | done | Stable native association; Object › Attach to Active Artboard / Detach from Artboard; clipboard and drag regression tests |
 | Shift-click selects several artboards (Artboard tool, Artboards panel); they move, Alt-copy and delete together | done | `artboard.move`/`artboard.delete` `indices` (#1139) |
 | Shape tools: Shift constrains, Alt from centre, Space moves while dragging, arrows change sides/points/rows | done | |
 | Tool double-click opens its options | done | |
@@ -150,7 +153,8 @@ Layers panel.
 | Floating groups stack into sets; sets dock as extra dock columns (a multi-column dock); groups drop anywhere in a set or column, or onto its tabs; a column taller than the window scrolls | done | `window.panel.float {below, above}`, `window.panel.dock {column}` |
 | Panels outside the app window (another monitor) | missing | single OS window |
 | Edit Toolbar (•••): the All Tools drawer opens beside the toolbar by its button (Escape or a click outside closes it), dims the tools already in the toolbar; while it is open, tools drag from it onto the toolbar (between two tools, or onto one to join its group), from the toolbar into it, and within the toolbar; each toolbar keeps its edits | done | #1018; `window.editToolbar`, `toolbar.addTool`/`removeTool`/`reset`; the drawer's Reset (Illustrator has it in a drawer menu); dragging a toolbar button moves the tool it shows, not its whole group; New/Manage Toolbars missing |
-| Properties panel per context (every selection type's Quick Actions) | partial | |
+| Properties panel per context (every selection type's Quick Actions) | partial | Selection Colors added: per-colour chips, editable hex fields, model and usage count; nested groups, strokes, text and gradients; picker preview, Cancel and one-step Undo |
+| Replace a colour throughout selected artwork from Properties | done | Additional workflow, from [public Figma documentation](https://help.figma.com/hc/en-us/articles/360042553434-View-and-adjust-colors-in-a-mixed-selection); uses `recolor.colors`, `recolor.apply` and `ui.colorPicker {replace}`; theme and pointer/keyboard regressions |
 | Contextual task bar | done | |
 | Control bar with Transform and Stroke popovers | done | |
 | Attributes fill-rule controls with a compound member selected | done | Edits the compound's rule; direction still edits only the member; rendered-hole and Undo/Redo regression tests (#1197) |
@@ -172,11 +176,17 @@ re-measure of the panels added since.
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-12 | minor | Properties Selection Colors: edit one used colour across selected artwork with live preview, Cancel and one-step Undo; scores and estimates unchanged; grouped selection and freeform-point recoloring regressions |
+| 2026-10-12 | minor | Artboards: deletion keys preserve art, report the last-board guard and synchronize the navigator; estimates unchanged |
 | 2026-10-12 | minor | macOS native save sheets gain a localised Format menu (#866); filename regression tests and an actual SVG save, PDF selection and cancellation verified; scores unchanged (estimated) |
 | 2026-10-12 | minor | Attributes: directly selected compound members read and change the compound fill rule; path direction stays member-local (#1197); score unchanged |
+| 2026-10-11 | minor | Artboards: selecting a row enters editing and exposes X/Y/W/H; scores unchanged |
+| 2026-10-11 | minor | Artboards: pasted artwork moves with its active board outside its bounds; Attach/Detach controls; scores unchanged |
 | 2026-10-11 | minor | A marquee inside a filled shape no longer selects it: only touching its path does (#1103); score unchanged (estimated) |
 | 2026-10-11 | minor | Live Corners: corners between curved sides round too, the curve trimmed to what the cut leaves (#1144); score unchanged (estimated) |
 | 2026-10-11 | minor | Artboards: Shift-click selects several, which move, copy and delete together (#1139); score unchanged (estimated) |
 | 2026-10-11 | minor | Edit Toolbar opens the All Tools drawer beside the toolbar instead of a centred dialog, dims the tools the toolbar holds, and edits the toolbar by drag and drop while it is open (#1018); score unchanged (estimated) |
 | 2026-10-11 | minor | Direct Selection: dragging a path selected whole by an anchor moves it whole; Alt-drag copies by an anchor too, toggles during the drag and snaps onto the original (#1104); score unchanged (estimated) |
 | 2026-10-10 | major | First checklist, built from the tool sources and tests against Illustrator 2026's public documentation |
+
+- 2026-10-12: Type-tool clicks on empty canvas leave the document unchanged; a drag creates an area-text frame. Existing-text clicks and dedicated area/path-type conversion remain available. User-requested workflow; parity scores unchanged.

@@ -34,6 +34,7 @@ pub mod paragraph;
 pub mod pathfinder;
 pub mod pattern_options;
 pub mod properties;
+mod selection_colors;
 pub mod separations;
 pub mod stroke;
 pub mod swatches;

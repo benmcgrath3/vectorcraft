@@ -3229,7 +3229,6 @@
 	 to finish	 для завершения
 	 to add smooth points  |  	 для добавления сглаженных точек  |  
 	 to toggle corner  |  	 для переключения угла  |  
-	 to create point type  |  	 для создания точечного текста  |  
 	 to create area type  |  	 для создания текста в области  |  
 	 to exit editing	 для выхода из редактирования
 	 to draw  |  	 для рисования  |  
@@ -4153,3 +4152,14 @@ lighting	Light	Свет
 @msg	unsupported native docking operation	Неподдерживаемая собственная операция прикрепления
 	Linux Display Server	Дисплейный сервер Linux
 	X11 (XWayland)	X11 (XWayland)
+
+	Attach to Active Artboard	Прикрепить к активной монтажной области
+	Detach from Artboard	Отсоединить от монтажной области
+
+# Selection colors in Properties
+	Selection Colors	Цвета выделения
+	Edit selection color	Изменить цвет выделения
+	Color uses in the selection	Использования цвета в выделении
+	Invalid hex color	Недопустимый шестнадцатеричный цвет
+@msg	bad selection color key {v}	недопустимый ключ цвета выделения {v}
+@msg	the color is not used in the selection	цвет не используется в выделении

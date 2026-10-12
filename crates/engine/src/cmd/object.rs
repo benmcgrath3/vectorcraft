@@ -489,10 +489,14 @@ fn group(s: &mut Session, _: &Value) -> Result<Value> {
 pub(crate) fn group_nodes(d: &mut Document, ids: &[NodeId]) -> Result<NodeId> {
     let Some(top) = ids.last().copied() else { return Err(EngineError::Other("nothing selected".into())) };
     let (par, idx, _) = d.position(top).ok_or(EngineError::NoNode(top))?;
+    let owner = d.node(top).and_then(|n| n.artboard).filter(|a| ids.iter().all(|id| d.node(*id).is_some_and(|n| n.artboard == Some(*a))));
     let gid = d.alloc_id();
     d.insert(par, idx + 1, Node::group(gid, vec![]))?;
     for id in ids {
         d.move_node(*id, Some(gid), usize::MAX)?;
+    }
+    if let Some(group) = d.node_mut(gid) {
+        group.artboard = owner;
     }
     Ok(gid)
 }

@@ -3230,7 +3230,6 @@
 	 to finish	 pour terminer
 	 to add smooth points  |  	 pour ajouter des points d’inflexion  |  
 	 to toggle corner  |  	 pour basculer en point d’angle  |  
-	 to create point type  |  	 pour créer du texte de point  |  
 	 to create area type  |  	 pour créer du texte captif  |  
 	 to exit editing	 pour quitter la modification
 	 to draw  |  	 pour dessiner  |  
@@ -4165,3 +4164,14 @@ lighting	Light	Lumière
 @msg	unsupported native docking operation	Opération native d’ancrage non prise en charge
 	Linux Display Server	Serveur d’affichage Linux
 	X11 (XWayland)	X11 (XWayland)
+
+	Attach to Active Artboard	Associer au plan de travail actif
+	Detach from Artboard	Dissocier du plan de travail
+
+# Selection colors in Properties
+	Selection Colors	Couleurs de la sélection
+	Edit selection color	Modifier la couleur de la sélection
+	Color uses in the selection	Utilisations de la couleur dans la sélection
+	Invalid hex color	Couleur hexadécimale non valide
+@msg	bad selection color key {v}	clé de couleur de sélection non valide {v}
+@msg	the color is not used in the selection	la couleur n’est pas utilisée dans la sélection

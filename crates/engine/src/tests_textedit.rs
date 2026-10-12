@@ -28,10 +28,14 @@ fn obj(s: &Session, id: NodeId) -> TextObject {
     }
 }
 
-fn click(s: &mut Session, x: f64, y: f64) {
+fn click_or_place_point(s: &mut Session, x: f64, y: f64) {
     let v = ViewInfo::default();
     for k in [PointerKind::Down, PointerKind::Up] {
         s.pointer(&PointerEvent::new(k, x, y), v).unwrap();
+    }
+    if !s.tool_wants_text() {
+        s.execute("text.create", &json!({"x": x, "y": y, "text": ""})).unwrap();
+        s.with_tool_cx(v, |t, cx| t.notify(cx, "text.editNew"));
     }
 }
 
@@ -103,7 +107,7 @@ fn type_tool_typing_is_one_undo_step() {
     let mut s = session();
     let v = ViewInfo::default();
     s.select_tool("type", v).unwrap();
-    click(&mut s, 200.0, 200.0);
+    click_or_place_point(&mut s, 200.0, 200.0);
     let id = s.doc().unwrap().selection.objects[0];
     s.tool_text("Hello", v).unwrap();
     s.tool_text(" world", v).unwrap();
@@ -126,7 +130,7 @@ fn undo_while_typing_takes_back_only_the_typing_and_redo_returns_it() {
     let mut s = session();
     let v = ViewInfo::default();
     s.select_tool("type", v).unwrap();
-    click(&mut s, 200.0, 200.0);
+    click_or_place_point(&mut s, 200.0, 200.0);
     let id = s.doc().unwrap().selection.objects[0];
     s.tool_text("abc", v).unwrap();
     key(&mut s, ToolKey::Left, Mods::default());
@@ -165,7 +169,7 @@ fn ime_composition_shows_in_place_and_commits_as_one_step() {
     let mut s = session();
     let v = ViewInfo::default();
     s.select_tool("type", v).unwrap();
-    click(&mut s, 200.0, 200.0);
+    click_or_place_point(&mut s, 200.0, 200.0);
     let id = s.doc().unwrap().selection.objects[0];
     let created = undo_labels(&s).len();
     s.tool_text("曲:", v).unwrap();
@@ -203,7 +207,7 @@ fn ime_cancel_leaves_no_undo_step_and_keeps_the_text() {
     let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t);
     let (a, b) = vectorcraft_text::caret_position(&lay, "雅楽".len());
     let p = t.xf * a.midpoint(b);
-    click(&mut s, p.x - 0.1, p.y);
+    click_or_place_point(&mut s, p.x - 0.1, p.y);
     assert!(s.tool_wants_text());
     s.set_tool_option("select", &json!({"start": 6, "end": 6}));
     let before = undo_labels(&s).len();
@@ -231,17 +235,17 @@ fn clicking_away_keeps_marked_text_as_typed_and_undo_mid_composition_is_safe() {
     let mut s = session();
     let v = ViewInfo::default();
     s.select_tool("type", v).unwrap();
-    click(&mut s, 200.0, 200.0);
+    click_or_place_point(&mut s, 200.0, 200.0);
     let id = s.doc().unwrap().selection.objects[0];
     s.tool_preedit("しょうこ", Some(4..4), v).unwrap();
     // Keys belong to the IME while it composes.
     key(&mut s, ToolKey::Backspace, Mods::default());
     assert_eq!(obj(&s, id).plain_text(), "しょうこ");
-    click(&mut s, 600.0, 500.0);
+    click_or_place_point(&mut s, 600.0, 500.0);
     assert!(!s.tool_composing());
     assert_eq!(obj(&s, id).plain_text(), "しょうこ", "the marked text stays, committed");
     // The UI holds Undo back while composing; if it comes anyway, the session is committed first.
-    click(&mut s, 50.0, 50.0);
+    click_or_place_point(&mut s, 50.0, 50.0);
     let id2 = s.doc().unwrap().selection.objects[0];
     s.tool_preedit("ひちりき", Some(4..4), v).unwrap();
     s.execute("edit.undo", &json!({})).unwrap();
@@ -262,7 +266,7 @@ fn type_tool_selection_replace_and_delete() {
     let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t);
     let (a, b) = vectorcraft_text::caret_position(&lay, 6);
     let p = t.xf * a.midpoint(b);
-    click(&mut s, p.x + 0.1, p.y);
+    click_or_place_point(&mut s, p.x + 0.1, p.y);
     assert!(s.tool_wants_text());
     assert_eq!(s.tool_options()["caret"], json!(6));
     let shift_word = Mods { shift: true, alt: true, ..Default::default() };
@@ -283,7 +287,7 @@ fn character_panel_flow_styles_the_selected_range_while_editing() {
     let mut s = session();
     let v = ViewInfo::default();
     s.select_tool("type", v).unwrap();
-    click(&mut s, 50.0, 300.0);
+    click_or_place_point(&mut s, 50.0, 300.0);
     let id = s.doc().unwrap().selection.objects[0];
     s.tool_text("Make this big", v).unwrap();
     // Select "this" (still inside the typing session).
@@ -317,7 +321,7 @@ fn select_all_and_cut_like_ui() {
     s.select_tool("type", v).unwrap();
     let t = obj(&s, id);
     let p = t.xf * Point::new(2.0, -5.0);
-    click(&mut s, p.x, p.y);
+    click_or_place_point(&mut s, p.x, p.y);
     // Select All while editing takes the text, not the art (the rectangle stays unselected).
     assert!(s.tool_wants_text());
     let o = s.execute("select.all", &json!({})).unwrap();
@@ -404,7 +408,7 @@ fn type_on_path_tool_through_session() {
     let e = s.execute("shape.ellipse", &json!({"x": 100, "y": 100, "width": 200, "height": 200})).unwrap();
     s.select_tool("typeOnPath", v).unwrap();
     assert_eq!(s.tool_id(), "typeOnPath");
-    click(&mut s, 300.0, 200.0);
+    click_or_place_point(&mut s, 300.0, 200.0);
     let id = s.doc().unwrap().selection.objects[0];
     assert_ne!(id.0, e["id"].as_u64().unwrap());
     s.tool_text("Around", v).unwrap();
@@ -483,7 +487,7 @@ fn type_tool_state_does_not_leak_across_documents() {
     let mut s = session();
     let v = ViewInfo::default();
     s.select_tool("type", v).unwrap();
-    click(&mut s, 200.0, 200.0);
+    click_or_place_point(&mut s, 200.0, 200.0);
     let id = s.doc().unwrap().selection.objects[0];
     s.tool_text("First", v).unwrap();
     // A second document whose first object reuses the same id.
@@ -571,7 +575,7 @@ fn a_fill_chosen_with_characters_selected_colours_only_them() {
     let mut s = session();
     let v = ViewInfo::default();
     s.select_tool("type", v).unwrap();
-    click(&mut s, 50.0, 300.0);
+    click_or_place_point(&mut s, 50.0, 300.0);
     let id = s.doc().unwrap().selection.objects[0];
     s.tool_text("Sample Text", v).unwrap();
     let before = obj(&s, id).runs[0].style.fill.clone();

@@ -1,6 +1,6 @@
 # Gaps
 
-> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-11 · **Change:** minor (G15: large-selection edits, cached live effects and faster Pathfinder, #1173; G4: proportional vertical metrics done, #966; G11: Shape Builder merge seams on grids of lines fixed, #893; scaled text controls corrected, #1034; group font-size preservation deferred) · **Target:** Adobe Illustrator 2026 (30.x)
+> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-12 · **Change:** minor (Properties Selection Colors: edit one used colour across selected artwork with live preview, Cancel and one-step Undo; scores and estimates unchanged; local artboard attachment, dimension editing, deletion-key and external-text paste fixes retained; G15: large-selection edits, cached live effects and faster Pathfinder, #1173; G4: proportional vertical metrics done, #966; G11: Shape Builder merge seams on grids of lines fixed, #893; scaled text controls corrected, #1034; group font-size preservation deferred) · **Target:** Adobe Illustrator 2026 (30.x)
 
 Every known shortfall against Illustrator, one entry each, **ranked by how much it stops a professional from
 switching**. This is the work list: unless you were given a task, pick the highest-ranked gap you can make
@@ -68,7 +68,7 @@ from G14 and the budget run of G15: **~170–270 h** one agent, ~50–80 h wall 
 ## G10 Launch and stability on real machines
 
 - **Missing:** the app not starting or staying in the background on some Windows 11 machines (#858, #964 fixed
-  2026-10-10, #620, #818), slow pointer on a Linux AppImage (#575), macOS paste from other apps (#954), a
+  2026-10-10, #620, #818), slow pointer on a Linux AppImage (#575), other reported macOS clipboard cases (#954, still need reporter verification), a
   web-free crash/hang reporter, a field record.
 - **Evidence:** open issues; the never-crash lints and `guard` stop panics, not driver, windowing or packaging
   failures.
@@ -85,6 +85,14 @@ from G14 and the budget run of G15: **~170–270 h** one agent, ~50–80 h wall 
 - **Estimate:** 30–50 h (the corpus and QA part blocks beta).
 
 ## G11 Correctness bugs in core tools
+
+- **Done:** pasting external text into an existing text object reads the current system clipboard through Edit › Paste and Command-V. Unicode, multiline text, selected-range replacement, destination size and undo/redo are covered.
+
+- **Done:** Backspace/Delete in artboard editing deletes selected boards with undo, keeps artwork intact, and synchronizes the navigator. Attempts to delete the last/all artboards show the existing one-artboard restriction and keep both artwork and board selection.
+
+- **Done:** selecting an Artboards panel row enters artboard editing and exposes the selected board’s X/Y/W/H in Properties and Transform. Real-panel tests cover independent width/height edits and undo.
+
+- **Done:** pasted artwork is associated with its active artboard by stable id and moves with it beyond its edges. Object › Attach to Active Artboard / Detach from Artboard covers existing artwork; native save/reopen and undo retain the association.
 
 - **Done:** scaled text's size and horizontal-scale controls account for object/group transforms (#1034),
   including exact sizes across grouped labels and resetting horizontal stretch while keeping editable text.
@@ -104,6 +112,8 @@ from G14 and the budget run of G15: **~170–270 h** one agent, ~50–80 h wall 
 - **Estimate:** 34–47 h (type core 14–19 h blocks beta).
 
 ## G12 Preferences and panels that don't act yet
+
+- **Done:** Properties Selection Colors exposes the colours within selected objects and groups for replacement via editable hex fields or the Color Picker. Preview, Cancel and one-step Undo are supported; unselected artwork stays unchanged. This improves the selection context; the remaining contexts and estimates below stay unchanged.
 
 - **Missing:** ~17 Preferences options stored but not acted on (#394: Highlight Alternate Glyphs, Open
   Documents As Tabs, Real-time Drawing, hyphenation language, Appearance of Black, devices…), Properties panel per
@@ -204,6 +214,11 @@ from G14 and the budget run of G15: **~170–270 h** one agent, ~50–80 h wall 
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-12 | minor | Properties Selection Colors: edit one used colour across selected artwork with live preview, Cancel and one-step Undo; scores and estimates unchanged; grouped selection and freeform-point recoloring regressions |
+| 2026-10-12 | minor | Existing type: menu paste and Command-V read fresh clipboard text; multiline Unicode, formatting retention and undo tested. Scores and hours unchanged. |
+| 2026-10-12 | minor | G11: artboard deletion keys preserve artwork and board selection on rejected deletion; estimates unchanged |
+| 2026-10-11 | minor | G11: Artboards row selection shows editable board dimensions; estimates unchanged |
+| 2026-10-11 | minor | G11: pasted and explicitly attached objects follow their artboard outside its bounds; estimates unchanged |
 | 2026-10-11 | minor | G15: large-selection edits, cached live effects and faster Pathfinder (#1173); a 25k-path perf run meets every budget; estimate unchanged |
 | 2026-10-11 | minor | G4: Middle Eastern digit types done (Character panel menu › Digits); estimate unchanged |
 | 2026-10-11 | minor | G4: proportional vertical metrics (#966) done; estimate unchanged |
@@ -215,3 +230,5 @@ from G14 and the budget run of G15: **~170–270 h** one agent, ~50–80 h wall 
 | 2026-10-10 | minor | G9 evidence counted from the tracker (28 `.ai`/EPS issues, 20 fixed); impact narrowed to handing files back |
 | 2026-10-10 | minor | Alpha blockers checked against the core-workflow gate: none |
 | 2026-10-10 | major | Moved from the ROADMAP's "Where we're lacking"; kept ids G1–G8, added G9–G19 (file formats, stability, bugs, preferences, 30.x additions, pen hardware, performance, localization, ecosystem, AI, accessibility) and re-ranked |
+
+- 2026-10-12: Type-tool clicks on empty canvas leave the document unchanged; a drag creates an area-text frame. Existing-text clicks and dedicated area/path-type conversion remain available. User-requested workflow; parity scores unchanged.

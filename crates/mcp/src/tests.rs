@@ -626,7 +626,7 @@ fn show_font_names_in_english_does_not_change_font_list_for_agents() {
 #[test]
 fn type_preferences_apply_to_agents() {
     let mut s = server();
-    let events = json!([{"kind": "down", "x": 100, "y": 100}, {"kind": "up", "x": 100, "y": 100}]);
+    let events = json!([{"kind": "down", "x": 100, "y": 100}, {"kind": "drag", "x": 300, "y": 200}, {"kind": "up", "x": 300, "y": 200}]);
     let r = call(&mut s, 1, "pointer_gesture", json!({"tool": "type", "events": events}));
     assert_eq!(r["isError"], false, "{r}");
     let id = serde_json::from_str::<Value>(&text_of(&r)).unwrap()["selection"][0].as_u64().unwrap();

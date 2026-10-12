@@ -89,7 +89,15 @@ pub fn recolor_node(n: &mut Node, reach: Reach, v: &mut dyn ColorVisitor) -> usi
 /// ([`Paint::map_links`]); a gradient that changes is no longer its gradient swatch's. Returns
 /// whether anything changed.
 pub fn map_links(p: &mut Paint, f: &dyn Fn(&mut Color, &mut Option<String>, &mut f32) -> bool) -> bool {
-    let changed = p.map_links(&mut |c, l, t| f(c, l, t));
+    let mut changed = p.map_links(&mut |c, l, t| f(c, l, t));
+    // Placed freeform gradients render their points, rather than their mirrored stops.
+    if let Paint::Gradient(g) = p
+        && let Some(points) = &mut g.freeform
+    {
+        for point in &mut points.points {
+            changed |= f(&mut point.color, &mut None, &mut 1.0);
+        }
+    }
     if changed && let Paint::Gradient(g) = p {
         g.swatch = None;
     }

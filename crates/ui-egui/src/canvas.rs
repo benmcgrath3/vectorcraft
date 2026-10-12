@@ -902,14 +902,7 @@ fn drag_art_out(app: &mut VectorcraftApp, ui: &Ui, resp: &egui::Response, p: Pos
 /// Send a pointer event to the active tool and act on UI requests (dialogs, tool switches).
 pub fn dispatch(app: &mut VectorcraftApp, ev: &PointerEvent, view: vectorcraft_engine::ViewInfo) {
     let r = app.session.pointer(ev, view);
-    // The artboard the Artboard tool makes active is the active one (the navigator's, the
-    // Artboards panel's).
-    if app.session.tool_id() == "artboard"
-        && let Some(i) = app.session.tool_options()["active"].as_u64().and_then(|i| usize::try_from(i).ok())
-        && let Some(v) = app.view_mut()
-    {
-        v.artboard = i;
-    }
+    sync_active_artboard(app);
     // A press with a selection tool inside an artboard makes it the active one (#693), as the
     // Artboard tool's does: Paste in Place and in Front or Back then paste onto it, Align to
     // Artboard aligns to it, and All on Active Artboard selects on it.
@@ -921,6 +914,18 @@ pub fn dispatch(app: &mut VectorcraftApp, ev: &PointerEvent, view: vectorcraft_e
         v.artboard = i;
     }
     apply_requests(app, r);
+}
+
+/// Pointer and keyboard actions both keep the navigator and panels on the tool's active board.
+pub(crate) fn sync_active_artboard(app: &mut VectorcraftApp) {
+    // The artboard the Artboard tool makes active is the active one (the navigator's, the
+    // Artboards panel's).
+    if app.session.tool_id() == "artboard"
+        && let Some(i) = app.session.tool_options()["active"].as_u64().and_then(|i| usize::try_from(i).ok())
+        && let Some(v) = app.view_mut()
+    {
+        v.artboard = i;
+    }
 }
 
 /// Act on what a tool event asked the UI for (dialogs, tool switches), or show its error.
@@ -3531,7 +3536,8 @@ mod tests {
         let click =
             |p: Pos2, pressed| egui::Event::PointerButton { pos: p, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
         typing_frame(&mut app, &ctx, vec![egui::Event::PointerMoved(at), click(at, true)]);
-        typing_frame(&mut app, &ctx, vec![click(at, false)]);
+        typing_frame(&mut app, &ctx, vec![egui::Event::PointerMoved(at + egui::vec2(90.0, 50.0))]);
+        typing_frame(&mut app, &ctx, vec![click(at + egui::vec2(90.0, 50.0), false)]);
         assert!(app.session.tool_wants_text());
         let id = app.session.active().unwrap().selection.objects[0].0;
         // Editing: the IME is allowed, its window at the caret (the text's baseline at y = 100).
@@ -3575,13 +3581,15 @@ mod tests {
         let click =
             |p: Pos2, pressed| egui::Event::PointerButton { pos: p, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
         typing_frame(&mut app, &ctx, vec![egui::Event::PointerMoved(a), click(a, true)]);
-        typing_frame(&mut app, &ctx, vec![click(a, false)]);
+        typing_frame(&mut app, &ctx, vec![egui::Event::PointerMoved(a + egui::vec2(90.0, 50.0))]);
+        typing_frame(&mut app, &ctx, vec![click(a + egui::vec2(90.0, 50.0), false)]);
         let id = app.session.active().unwrap().selection.objects[0].0;
         typing_frame(&mut app, &ctx, vec![preedit("しょうこ", 4)]);
         // macOS sends nothing for a click away; the tool keeps the marked text and the IME is
         // told to drop its composition.
         typing_frame(&mut app, &ctx, vec![egui::Event::PointerMoved(b), click(b, true)]);
-        let ime = typing_frame(&mut app, &ctx, vec![click(b, false)]);
+        typing_frame(&mut app, &ctx, vec![egui::Event::PointerMoved(b + egui::vec2(40.0, 30.0))]);
+        let ime = typing_frame(&mut app, &ctx, vec![click(b + egui::vec2(40.0, 30.0), false)]);
         assert_eq!(plain(&app, id), "しょうこ");
         assert!(!app.session.tool_composing());
         assert!(ime.expect("editing the new text").should_interrupt_composition);
@@ -3604,7 +3612,8 @@ mod tests {
         let click =
             |p: Pos2, pressed| egui::Event::PointerButton { pos: p, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
         typing_frame(&mut app, &ctx, vec![egui::Event::PointerMoved(at), click(at, true)]);
-        typing_frame(&mut app, &ctx, vec![click(at, false)]);
+        typing_frame(&mut app, &ctx, vec![egui::Event::PointerMoved(at + egui::vec2(90.0, 50.0))]);
+        typing_frame(&mut app, &ctx, vec![click(at + egui::vec2(90.0, 50.0), false)]);
         let id = app.session.active().unwrap().selection.objects[0].0;
         typing_frame(&mut app, &ctx, vec![egui::Event::Text("雅".into())]);
         let backspace =

@@ -712,7 +712,6 @@
 	 to constrain proportions  |  	：縦横比を固定  |  
 	 to copy  |  	：コピー  |  
 	 to create area type  |  	：エリア内文字を作成  |  
-	 to create point type  |  	：ポイント文字を作成  |  
 	 to draw  |  	：描画  |  
 	 to exit editing	：編集を終了
 	 to finish	：終了
@@ -4151,3 +4150,14 @@ lighting	Light	ライト
 @msg	unsupported native docking operation	ネイティブドッキング操作は未対応です
 	Linux Display Server	Linux ディスプレイサーバー
 	X11 (XWayland)	X11 (XWayland)
+
+	Attach to Active Artboard	現在のアートボードに関連付け
+	Detach from Artboard	アートボードとの関連付けを解除
+
+# Selection colors in Properties
+	Selection Colors	選択範囲のカラー
+	Edit selection color	選択範囲のカラーを編集
+	Color uses in the selection	選択範囲内のカラーの使用数
+	Invalid hex color	無効な16進数カラー
+@msg	bad selection color key {v}	選択範囲のカラーキーが無効です {v}
+@msg	the color is not used in the selection	この色は選択範囲で使用されていません

@@ -269,8 +269,8 @@ pub(crate) fn end_typing(app: &mut VectorcraftApp) {
 }
 
 static CTX: OnceLock<egui::Context> = OnceLock::new();
-/// Plain text of the last text copied inside the Type tool (paste from the native menu, which
-/// can't read the system clipboard).
+/// Plain text of the last text copied inside the Type tool, for hosts without a clipboard reader
+/// (keyboard paste on the web delivers its text in an egui Paste event).
 static CLIP: Mutex<String> = Mutex::new(String::new());
 
 fn text_copy(app: &mut VectorcraftApp) -> bool {
@@ -296,7 +296,16 @@ fn text_key(app: &mut VectorcraftApp, k: ToolKey, m: Mods) {
 }
 
 fn text_paste(app: &mut VectorcraftApp, s: Option<String>) {
-    let s = s.unwrap_or_else(|| CLIP.lock().unwrap_or_else(|e| e.into_inner()).clone());
+    let s = match s {
+        Some(s) => s,
+        None if app.services.system_clipboard.is_some() || app.services.clipboard_read.is_some() => {
+            // Read afresh: text copied in another app replaces the Type tool's old copy. An empty
+            // or non-text clipboard must not paste that stale copy instead.
+            app.system_clipboard_text().unwrap_or_default()
+        }
+        None => CLIP.lock().unwrap_or_else(|e| e.into_inner()).clone(),
+    };
+    let s = s.replace("\r\n", "\n").replace('\r', "\n");
     if !s.is_empty() {
         let v = app.view_info();
         if let Err(e) = app.session.tool_text(&s, v) {

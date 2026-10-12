@@ -1081,6 +1081,75 @@ impl Document {
         }
         art
     }
+    /// Artwork moving with a particular artboard: attached objects even outside its bounds,
+    /// and unassigned legacy artwork wholly inside. A live attachment to another board wins
+    /// over containment. Layers and groups containing attached artwork are traversed so a
+    /// group does not erase its children's associations or move an object twice.
+    pub fn art_for_artboard(&self, index: usize, locked_and_hidden: bool) -> Vec<NodeId> {
+        let Some(board) = self.artboards.get(index) else { return vec![] };
+        fn collect(doc: &Document, n: &Node, board: &Artboard, all: bool, out: &mut Vec<NodeId>) {
+            if !n.rides_with_artboard(all) {
+                return;
+            }
+            let owner = n.artboard.filter(|id| doc.artboards.iter().any(|a| a.id == *id));
+            if !n.is_layer()
+                && let Some(owner) = owner
+            {
+                if owner == board.id {
+                    out.push(n.id);
+                }
+                return;
+            }
+            let mut attached_children = false;
+            n.walk(&mut |c| attached_children |= c.artboard.is_some_and(|id| doc.artboards.iter().any(|a| a.id == id)));
+            if n.is_layer() || attached_children {
+                for child in n.children().into_iter().flatten() {
+                    collect(doc, child, board, all, out);
+                }
+            } else if let Some(b) = n.geometric_bounds()
+                && b.x0 >= board.rect.x0
+                && b.y0 >= board.rect.y0
+                && b.x1 <= board.rect.x1
+                && b.y1 <= board.rect.y1
+            {
+                out.push(n.id);
+            }
+        }
+        let mut art = vec![];
+        for layer in &self.layers {
+            collect(self, layer, board, locked_and_hidden, &mut art);
+        }
+        art
+    }
+    /// Change an object's association. An ancestor group associated with a different board
+    /// stops carrying the whole group; siblings keep their own associations.
+    pub fn attach_artboard(&mut self, node: NodeId, owner: Option<u32>) -> Result<(), DocError> {
+        let ancestors = self.ancestry(node).ok_or(DocError::NoNode(node))?;
+        for ancestor in ancestors.into_iter().filter(|a| *a != node) {
+            if let Some(n) = self.node_mut(ancestor)
+                && !n.is_layer()
+                && n.artboard != owner
+            {
+                n.artboard = None;
+            }
+        }
+        self.node_mut(node).ok_or(DocError::NoNode(node))?.attach_artboard(owner);
+        Ok(())
+    }
+    /// Remove a deleted board's associations before its id can be reused by a new board.
+    pub fn detach_artboard(&mut self, id: u32) {
+        let mut attached = vec![];
+        self.walk(|n| {
+            if n.artboard == Some(id) {
+                attached.push(n.id);
+            }
+        });
+        for node in attached {
+            if let Some(n) = self.node_mut(node) {
+                n.artboard = None;
+            }
+        }
+    }
     /// Where ruler guide `g` runs along its line (the y range of a vertical guide): across its
     /// artboard for an artboard guide, None (the whole canvas) for a canvas guide or one whose
     /// artboard is gone.

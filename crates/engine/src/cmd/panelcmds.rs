@@ -16,7 +16,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Duplicate Artboard",
             ["Window", "Artboards"],
             None,
-            "{index?: n (default: the Artboard tool's artboard), art?: bool (default: the Artboard tool's moveArt option), patterns?: bool (Transform Patterns: pattern fills and strokes transform with the art; default: prefs transformPatternTiles)} copy placed right of the last artboard, with copies of the art fully inside it when `art` (locked and hidden art only with prefs moveLockedWithArtboard) → {index, ids: the art's copies}",
+            "{index?: n (default: the Artboard tool's artboard), art?: bool (default: the Artboard tool's moveArt option), patterns?: bool (Transform Patterns: pattern fills and strokes transform with the art; default: prefs transformPatternTiles)} copy placed right of the last artboard, with copies of its attached art and unassigned art fully inside it when `art` (locked and hidden art only with prefs moveLockedWithArtboard) → {index, ids: the art's copies}",
             has_doc,
             artboard_duplicate
         ),
@@ -25,7 +25,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Copy Artboard",
             [],
             None,
-            "{index?, art?} (defaults as artboard.duplicate) put the artboard, and the art fully inside it when `art`, on the clipboard: edit.paste adds a copy right of the last artboard, edit.pasteInPlace/InFront/InBack where it was, in this or another document (one undo step; edit.pasteOnAllArtboards pastes only the art); edit.copy runs this while the Artboard tool is chosen → {copied: objects}",
+            "{index?, art?} (defaults as artboard.duplicate) put the artboard, and its attached art and unassigned art fully inside it when `art`, on the clipboard: edit.paste adds a copy right of the last artboard, edit.pasteInPlace/InFront/InBack where it was, in this or another document (one undo step; edit.pasteOnAllArtboards pastes only the art); edit.copy runs this while the Artboard tool is chosen → {copied: objects}",
             has_doc,
             |s, p| artboard_copy(s, p, false)
         ),
@@ -76,8 +76,6 @@ fn board_and_art(s: &Session, p: &Value) -> (usize, bool) {
     (i, bool_or(p, "art", t["moveArt"].as_bool().unwrap_or(true)))
 }
 
-/// The art that goes with artboard `i` when `art`: the objects fully inside it (locked and hidden
-/// ones only with prefs moveLockedWithArtboard), in paint order.
 /// The artboards `cmd` acts on: `indices` (several), else `index` (one), each an artboard of `d`,
 /// in order and once each.
 pub(crate) fn artboard_indices(d: &vectorcraft_doc::Document, p: &Value, cmd: &str) -> Result<Vec<usize>> {
@@ -93,10 +91,12 @@ pub(crate) fn artboard_indices(d: &vectorcraft_doc::Document, p: &Value, cmd: &s
     Ok(indices)
 }
 
+/// Attached artwork (even outside the board) and unassigned artwork fully inside it,
+/// in paint order, respecting the locked/hidden preference.
 pub(crate) fn artboard_art(s: &Session, i: usize, art: bool) -> Result<Vec<NodeId>> {
     let d = &s.doc()?.doc;
-    let rect = d.artboards.get(i).map(|a| a.rect).ok_or_else(|| EngineError::Other("no such artboard".into()))?;
-    Ok(if art { d.art_on_artboard(rect, s.prefs.move_locked_with_artboard) } else { vec![] })
+    d.artboards.get(i).ok_or_else(|| EngineError::Other("no such artboard".into()))?;
+    Ok(if art { d.art_for_artboard(i, s.prefs.move_locked_with_artboard) } else { vec![] })
 }
 
 /// How far a copy of `rect` moves to sit right of the last artboard (Duplicate Artboards, Paste).
@@ -135,6 +135,7 @@ pub(crate) fn artboard_copy(s: &mut Session, p: &Value, cut: bool) -> Result<Val
             }
             // Its guides go with it.
             let gone = d.artboards.remove(i).id;
+            d.detach_artboard(gone);
             d.retain_guides(sel, |_, g| g.artboard != Some(gone));
             for id in &art {
                 // Always there: none of the art is inside another of it.
@@ -165,6 +166,7 @@ pub(crate) fn copy_artboard(d: &mut vectorcraft_doc::Document, i: usize, dv: Vec
     for id in art {
         let (Some((parent, at, _)), Some(n)) = (d.position(*id), d.node(*id).cloned()) else { continue };
         let mut c = d.reid(&n);
+        c.attach_artboard(d.artboards.get(index).map(|a| a.id));
         c.transform(Affine::translate(dv), sc);
         copies.push(d.insert(parent, at + 1, c)?);
     }

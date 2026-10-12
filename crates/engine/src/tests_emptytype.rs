@@ -24,8 +24,11 @@ fn drag(s: &mut Session, from: (f64, f64), to: (f64, f64)) {
     s.pointer(&PointerEvent::new(PointerKind::Up, to.0, to.1), v).unwrap();
 }
 
-fn click(s: &mut Session, x: f64, y: f64) {
-    drag(s, (x, y), (x, y));
+fn place_point(s: &mut Session, x: f64, y: f64) {
+    s.tool_key(ToolKey::Escape, Mods::default(), ViewInfo::default()).unwrap();
+    // Explicit point type keeps these discard/history tests independent of canvas creation.
+    s.execute("text.create", &json!({"x": x, "y": y, "text": ""})).unwrap();
+    s.with_tool_cx(ViewInfo::default(), |t, cx| t.notify(cx, "text.editNew"));
 }
 
 fn key(s: &mut Session, k: ToolKey) {
@@ -53,19 +56,19 @@ fn clicking_without_typing_leaves_no_text_and_no_history() {
     let v = ViewInfo::default();
     s.select_tool("type", v).unwrap();
     // Click, then Escape.
-    click(&mut s, 100.0, 100.0);
+    place_point(&mut s, 100.0, 100.0);
     assert_eq!(texts(&s).len(), 1, "the click places point type to edit");
     assert!(s.tool_wants_text());
     key(&mut s, ToolKey::Escape);
     assert!(texts(&s).is_empty());
     // Click, then switch tools.
-    click(&mut s, 150.0, 100.0);
+    place_point(&mut s, 150.0, 100.0);
     s.select_tool("rectangle", v).unwrap();
     assert!(texts(&s).is_empty());
     // Click in two places: the first is gone when the second is placed.
     s.select_tool("type", v).unwrap();
-    click(&mut s, 100.0, 300.0);
-    click(&mut s, 400.0, 300.0);
+    place_point(&mut s, 100.0, 300.0);
+    place_point(&mut s, 400.0, 300.0);
     assert_eq!(texts(&s).len(), 1);
     s.select_tool("selection", v).unwrap();
     assert!(texts(&s).is_empty());
@@ -79,14 +82,14 @@ fn typed_text_stays_and_typing_it_away_leaves_nothing() {
     let mut s = session();
     let v = ViewInfo::default();
     s.select_tool("type", v).unwrap();
-    click(&mut s, 100.0, 100.0);
+    place_point(&mut s, 100.0, 100.0);
     s.tool_text("Hi", v).unwrap();
     key(&mut s, ToolKey::Escape);
     assert_eq!(texts(&s).iter().map(|t| t.2.as_str()).collect::<Vec<_>>(), ["Hi"]);
     let kept = undo_labels(&s);
     assert_eq!(kept, ["Type", "Typing"]);
     // Typed, the caret moved (a step of its own), then deleted: all of it goes.
-    click(&mut s, 300.0, 300.0);
+    place_point(&mut s, 300.0, 300.0);
     s.tool_text("a", v).unwrap();
     key(&mut s, ToolKey::Left);
     key(&mut s, ToolKey::Delete);
@@ -107,7 +110,7 @@ fn frames_stay_when_left_empty() {
     // Area type made from a path.
     s.execute("shape.rectangle", &json!({"x": 400, "y": 300, "width": 200, "height": 100})).unwrap();
     s.select_tool("areaType", v).unwrap();
-    click(&mut s, 500.0, 300.0);
+    drag(&mut s, (500.0, 300.0), (500.0, 300.0));
     s.select_tool("selection", v).unwrap();
     assert_eq!(texts(&s).len(), 2);
     assert_eq!(undo_labels(&s), ["Type", "Rectangle", "Area Type"]);
@@ -118,7 +121,7 @@ fn a_command_that_deselects_the_text_ends_the_edit() {
     let mut s = session();
     let v = ViewInfo::default();
     s.select_tool("type", v).unwrap();
-    click(&mut s, 100.0, 100.0);
+    place_point(&mut s, 100.0, 100.0);
     // Commands on the edited text (the Character panel) keep editing it.
     let id = texts(&s)[0].0;
     s.execute("text.setRangeStyle", &json!({"id": id.0, "size": 30})).unwrap();
@@ -129,7 +132,7 @@ fn a_command_that_deselects_the_text_ends_the_edit() {
     assert!(texts(&s).is_empty());
     assert!(undo_labels(&s).is_empty(), "{:?}", undo_labels(&s));
     // A command that edits something else as well: the text goes in a step of its own.
-    click(&mut s, 100.0, 100.0);
+    place_point(&mut s, 100.0, 100.0);
     s.execute("shape.rectangle", &json!({"x": 400, "y": 300, "width": 20, "height": 10})).unwrap();
     assert!(!s.tool_wants_text());
     assert!(texts(&s).is_empty());
@@ -141,7 +144,7 @@ fn switching_documents_discards_it_in_the_document_left() {
     let mut s = session();
     let v = ViewInfo::default();
     s.select_tool("type", v).unwrap();
-    click(&mut s, 100.0, 100.0);
+    place_point(&mut s, 100.0, 100.0);
     s.execute("file.new", &json!({"width": 800, "height": 600})).unwrap();
     s.set_active(0);
     assert!(texts(&s).is_empty() && undo_labels(&s).is_empty());
@@ -160,4 +163,30 @@ fn discard_empty_command() {
     assert_eq!(s.execute("text.discardEmpty", &json!({"id": e["id"]})).unwrap(), json!({"removed": true}));
     assert_eq!(undo_labels(&s), ["Type", "Rectangle"]);
     assert_eq!(texts(&s).len(), 1);
+}
+
+#[test]
+fn canvas_clicks_do_nothing_and_only_drags_create_new_type() {
+    for placeholder in [false, true] {
+        for tool in ["type", "verticalType"] {
+            let mut s = session();
+            s.prefs.placeholder_text = placeholder;
+            let v = ViewInfo::default();
+            s.select_tool(tool, v).unwrap();
+            drag(&mut s, (100.0, 100.0), (100.0, 100.0));
+            assert!(texts(&s).is_empty() && undo_labels(&s).is_empty());
+            assert!(!s.tool_wants_text());
+            drag(&mut s, (100.0, 100.0), (102.0, 102.0));
+            assert!(texts(&s).is_empty());
+            drag(&mut s, (100.0, 100.0), (300.0, 200.0));
+            assert_eq!(texts(&s).len(), 1);
+            assert!(!texts(&s)[0].1);
+            assert!(s.tool_wants_text());
+            s.tool_text("Typed text", v).unwrap();
+            key(&mut s, ToolKey::Escape);
+            assert_eq!(texts(&s)[0].2, "Typed text");
+            drag(&mut s, (500.0, 400.0), (500.0, 400.0));
+            assert_eq!(texts(&s).len(), 1);
+        }
+    }
 }

@@ -578,8 +578,8 @@ mod tests {
         app.session.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
         let v = ViewInfo::default();
         app.session.select_tool("type", v).unwrap();
-        for k in [PointerKind::Down, PointerKind::Up] {
-            app.session.pointer(&PointerEvent::new(k, 50.0, 200.0), v).unwrap();
+        for (k, x, y) in [(PointerKind::Down, 50.0, 200.0), (PointerKind::Drag, 150.0, 260.0), (PointerKind::Up, 150.0, 260.0)] {
+            app.session.pointer(&PointerEvent::new(k, x, y), v).unwrap();
         }
         app.session.tool_text("Make this bold", v).unwrap();
         app.session.set_tool_option("select", &json!({"start": 5, "end": 9}));

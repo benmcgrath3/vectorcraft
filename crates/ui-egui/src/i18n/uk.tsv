@@ -3226,7 +3226,6 @@ effect	Points	Точки
 	 to finish	 для завершення
 	 to add smooth points  |  	 для додавання згладжених точок  |  
 	 to toggle corner  |  	 для перемикання кута  |  
-	 to create point type  |  	 для створення точкового тексту  |  
 	 to create area type  |  	 для створення тексту в області  |  
 	 to exit editing	 для виходу з редагування
 	 to draw  |  	 для малювання  |  
@@ -4137,3 +4136,14 @@ lighting	Light	Світло
 @msg	unsupported native docking operation	Непідтримувана власна операція прикріплення
 	Linux Display Server	Дисплейний сервер Linux
 	X11 (XWayland)	X11 (XWayland)
+
+	Attach to Active Artboard	Прикріпити до активної монтажної області
+	Detach from Artboard	Відкріпити від монтажної області
+
+# Selection colors in Properties
+	Selection Colors	Кольори виділення
+	Edit selection color	Редагувати колір виділення
+	Color uses in the selection	Використання кольору у виділенні
+	Invalid hex color	Недійсний шістнадцятковий колір
+@msg	bad selection color key {v}	некоректний ключ кольору виділення {v}
+@msg	the color is not used in the selection	колір не використовується у виділенні

@@ -41,11 +41,20 @@ pub fn specs() -> Vec<CommandSpec> {
             eyedropper_options
         ),
         cmd!(
+            "artboard.attach",
+            "Attach to Active Artboard",
+            ["Object"],
+            None,
+            "{artboard?: index (active artboard), or null to detach} attach the selected artwork to an artboard by stable id, including its children. It moves with that board even outside its bounds; undoable → {ids, artboard: stable id or null}",
+            has_selection,
+            artboard_attach
+        ),
+        cmd!(
             "artboard.move",
             "Move Artboard",
             [],
             None,
-            "{index | indices: [index…], dx, dy, moveArt?: bool, copy?: bool, patterns?: bool (Transform Patterns: pattern fills and strokes transform with the art; default: prefs transformPatternTiles)} move artboards (and the art fully inside them; locked and hidden art only with prefs moveLockedWithArtboard), several in one step; `copy` (Alt-drag) leaves them and moves copies → {index (the first), indices: the artboards moved or the copies, moved: the art moved or the copies}",
+            "{index | indices: [index…], dx, dy, moveArt?: bool, copy?: bool, patterns?: bool (Transform Patterns: pattern fills and strokes transform with the art; default: prefs transformPatternTiles)} move artboards (and their attached art plus unassigned art fully inside them; locked and hidden art only with prefs moveLockedWithArtboard), several in one step; `copy` (Alt-drag) leaves them and moves copies → {index (the first), indices: the artboards moved or the copies, moved: the art moved or the copies}",
             has_doc,
             artboard_move
         ),
@@ -364,6 +373,26 @@ fn sample_color(s: &mut Session, p: &Value) -> Result<Value> {
 }
 
 // ---------- artboards ----------
+
+fn artboard_attach(s: &mut Session, p: &Value) -> Result<Value> {
+    let owner = if p.get("artboard").is_some_and(Value::is_null) {
+        None
+    } else {
+        let index = match p.get("artboard") {
+            Some(v) => v.as_u64().and_then(|i| usize::try_from(i).ok()).ok_or_else(|| bad("artboard.attach", "artboard must be an index or null"))?,
+            None => s.tool_options_of("artboard")["active"].as_u64().and_then(|i| usize::try_from(i).ok()).unwrap_or(0),
+        };
+        Some(s.doc()?.doc.artboards.get(index).ok_or_else(|| bad("artboard.attach", "no such artboard"))?.id)
+    };
+    let ids = super::edit::selected_roots(s)?;
+    s.edit(if owner.is_some() { "Attach to Artboard" } else { "Detach from Artboard" }, |d, _| {
+        for id in &ids {
+            d.attach_artboard(*id, owner)?;
+        }
+        Ok(())
+    })?;
+    Ok(json!({"ids": ids.iter().map(|id| id.0).collect::<Vec<_>>(), "artboard": owner}))
+}
 
 fn artboard_move(s: &mut Session, p: &Value) -> Result<Value> {
     let indices = super::panelcmds::artboard_indices(&s.doc()?.doc, p, "artboard.move")?;

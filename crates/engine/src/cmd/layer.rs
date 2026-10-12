@@ -143,7 +143,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Artboard Options…",
             ["Window", "Artboards"],
             None,
-            "{index, name?, x?, y?, width?, height?, moveArt?: bool (default false; a position-only change moves the contained art with its artboard), scaleArt?: bool (Scale Artwork with Artboard: resized, the artboard takes the art fully inside it (locked and hidden art only with lockedAndHidden?: bool, default prefs moveLockedWithArtboard) and its guides from its old rectangle onto the new one, each side by its own ratio; strokes/corners/patterns as object.scale)} → null, or with scaleArt {scaled: the art scaled}",
+            "{index, name?, x?, y?, width?, height?, moveArt?: bool (default false; a position-only change moves attached art and unassigned contained art with its artboard), scaleArt?: bool (Scale Artwork with Artboard: resized, the artboard takes the art fully inside it (locked and hidden art only with lockedAndHidden?: bool, default prefs moveLockedWithArtboard) and its guides from its old rectangle onto the new one, each side by its own ratio; strokes/corners/patterns as object.scale)} → null, or with scaleArt {scaled: the art scaled}",
             has_doc,
             artboard_set
         ),
@@ -765,6 +765,7 @@ fn artboard_delete(s: &mut Session, p: &Value) -> Result<Value> {
         // The last first, so the others keep their places; their guides go with them.
         for &i in indices.iter().rev() {
             let id = d.artboards.remove(i).id;
+            d.detach_artboard(id);
             d.retain_guides(sel, |_, g| g.artboard != Some(id));
         }
         Ok(())
@@ -791,7 +792,7 @@ fn artboard_set(s: &mut Session, p: &Value) -> Result<Value> {
         // whatever the preference is then.
         let all = bool_or(p, "lockedAndHidden", s.prefs.move_locked_with_artboard);
         s.note_journal("lockedAndHidden", json!(all));
-        s.doc()?.doc.art_on_artboard(was, all)
+        if moving { s.doc()?.doc.art_for_artboard(i, all) } else { s.doc()?.doc.art_on_artboard(was, all) }
     } else {
         vec![]
     };

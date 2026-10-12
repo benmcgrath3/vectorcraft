@@ -109,7 +109,11 @@ impl Clipboard {
             source_layers.push(anc.iter().rev().skip(1).find_map(|a| d.node(*a).filter(|l| l.is_layer())).and_then(|l| l.name.clone()));
         }
         let bounds = nodes.iter().filter_map(Node::visual_bounds).reduce(|a, b| a.union(b));
-        let board = bounds.and_then(|b| d.artboard_at(b.center())).unwrap_or(0);
+        // Attached art may be outside its source board, even over another one. Relative pastes
+        // use that association when all copied roots share it, rather than their current location.
+        let owner = nodes.first().and_then(|n| n.artboard).filter(|id| nodes.iter().all(|n| n.artboard == Some(*id)));
+        let board =
+            owner.and_then(|id| d.artboards.iter().position(|a| a.id == id)).or_else(|| bounds.and_then(|b| d.artboard_at(b.center()))).unwrap_or(0);
         Self { source_artboard: d.artboards.get(board).map(|a| a.rect), source_layers, source_doc: Some(st.uid), ..Self::gather(d, nodes) }
     }
 
